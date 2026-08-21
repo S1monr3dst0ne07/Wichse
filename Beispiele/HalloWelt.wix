@@ -1,0 +1,22 @@
+
+
+prozess Druck(nachricht)
+auf
+    tu STD_OUTPUT_HANDLE = 0 - 11;
+    tu griff = GetStdHandel(STD_OUTPUT_HANDEL);
+    tu geschrieben;
+    tu länge = ZeichenkettenLänge(nachricht);
+
+    tu erfolg = WriteFile(griff, nachricht, länge, geschrieben);
+
+    rück erfolg;
+zu
+
+
+prozess Haupt()
+auf
+    Druck(»Hello, Welt!«);
+zu
+
+
+
