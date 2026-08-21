@@ -16,6 +16,8 @@ def ZeichenEinOrdne(zeichen):
         case '»':              return "gänsefuß auf"
         case '«':              return "gänsefuß zu"
 
+        case '›' | '‹':        return "gänsezeh"
+
         case ' ' | '\n':       return "formatierung"
 
         case _: return "symbol"
@@ -25,6 +27,23 @@ def ZeichenEinOrdne(zeichen):
 class Marke:
     inhalt : str
     zeile  : int
+    
+@dk
+class Fluss:
+    marken : list[Marke]
+    index  : int
+
+    def schau(self):
+        return self.marken[self.index]
+
+    def nimm(self):
+        marke = self.schau()
+        self.index += 1
+        return marke
+
+    def hat(self):
+        return self.index < len(self.marken)
+
 
 def LexAnalyse(pfad):
     with open(pfad, 'r', encoding='utf-8') as f:
@@ -33,7 +52,6 @@ def LexAnalyse(pfad):
     puffer = ""
     zeile = 0
     letzter_zustand = None
-
 
     fluss = []
     for zeichen in quelle:
@@ -48,14 +66,34 @@ def LexAnalyse(pfad):
         puffer += zeichen
         letzter_zustand = dieser_zustand
 
-    print(fluss)
+    return fluss
+
+class AsbProgramm:
+    prodezuren : list[AsbProzedur]
+    konstantent : dict[str, int]
+
+    def zerteil(kls, fluss):
+        prodezuren  = []
+        konstantent = {}
+
+        while fluss.hat():
+            match fluss.schau():
+                case 'prozedur':  prodezuren.append(AsbProzedur.zerteil(fluss))
+                case 'konstant':  
+                    name = fluss.nimm()
+                    fluss.erwarte("=")
+                    wert = int(fluss.nimm())
+
+                    konstant[name] = wert
+
+        return kls(prozeduren, konstantent)
 
 
 def Haupt():
-    pfad = sys.argv[1]
-
-    LexAnalyse(pfad)
-
+    pfad  = sys.argv[1]
+    fluss = LexAnalyse(pfad)
+    wurzel = AsbProgramm.zerteil(fluss)
+    print(wurzel)
 
 
 
