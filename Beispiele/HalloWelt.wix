@@ -2,7 +2,7 @@
 prozedur ZK::Länge(zk)
 auf
     tu länge = 0;
-    solang (zk.länge) != ›\0‹
+    solang *(zk+länge) != ›\0‹
     auf
         tu länge = länge + 1;
     zu
@@ -15,7 +15,7 @@ konstant STD_OUTPUT_HANDLE = -11;
 
 prozedur Druck(nachricht)
 auf
-    tu griff = GetStdHandel(STD_OUTPUT_HANDEL);
+    tu griff = GetStdHandel(STD_OUTPUT_HANDLE);
     tu geschrieben = 0;
     tu länge = ZK::Länge(nachricht);
 

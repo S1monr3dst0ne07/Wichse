@@ -1,5 +1,6 @@
 import sys
 from dataclasses import dataclass as dk #datenklass
+from dataclasses import field     as feld
 from typing import Any
 
 
@@ -65,13 +66,13 @@ def LexAnalyse(pfad):
     zeile = 1
     letzter_zustand = None
     kontrol_zeichen = False
+    zeichenketten_tiefe = 0
 
     fluss = []
     for zeichen in quelle:
         dieser_zustand = ZeichenEinOrdne(zeichen)
         
-        if zeichen == '\n':
-            zeile += 1
+        if zeichen == '\n': zeile += 1
 
         if kontrol_zeichen:
             puffer.pop(-1)
@@ -80,17 +81,28 @@ def LexAnalyse(pfad):
             kontrol_zeichen = False
             continue
 
-        if letzter_zustand and dieser_zustand != letzter_zustand:
+        abgeben = True
+        abgeben &= bool(letzter_zustand)
+        abgeben &= (dieser_zustand != letzter_zustand)
+        abgeben &= (zeichenketten_tiefe == 0)
+
+        if abgeben or (zeichen in ('(', ')')):
             if letzter_zustand != "formatierung":
                 fluss.append(Marke("".join(puffer), zeile))
 
             puffer = []
+
+        if zeichen == '»' : zeichenketten_tiefe += 1
+        if zeichen == '«' : zeichenketten_tiefe -= 1
 
         puffer.append(zeichen)
         letzter_zustand = dieser_zustand
         kontrol_zeichen = (zeichen == '\\')
 
     return Fluss(fluss)
+
+
+REGISTER = ['rcx', 'rbx', 'r8', 'r9']
 
 
 @dk
@@ -111,8 +123,24 @@ class AsbAufruf:
         fluss.erwarte(")")
         return kls(name, parameter)
 
+    def zusammenstell(selbst, gk, gib):
+        if len(selbst.parameter) > 4:
+            print(f"Warnung: Mehr als 4 parameter im Aufruf zu `{selbst.name}`.")
+
+        register = REGISTER[:len(selbst.parameter)]
+        for ausdruck in selbst.parameter[::-1]:
+            ausdruck.lade(gk, gib)
+            gib("push rax")
+
+        for ziel in register:
+            gib(f"pop {ziel}")
+
+        gib(f"call Prozedur_{selbst.name}")
 
 
+def fehler(msg):
+    print(f"Fehler: {msg}")
+    sys.exit(1)
 
 
 OPERATOREN = ['+', '-', '*', '/', '.', '<<', '>>', '&', '|', '^', '==', '!=', '>', '<']
@@ -135,23 +163,76 @@ class AsbUnär:
 
             case '›':
                 art = "zeichen"
-                inhalt = fluss.nimm()
+                inhalt = ord(fluss.nimm())
                 fluss.erwarte('‹')
 
+            case zk if zk.startswith("»"):
+                art = "zk"
+                inhalt = zk.strip("»«")
             case '-':
                 art = "minus"
                 inhalt = AsbUnär.zerteil(fluss)
+            case '*':
+                art = "zeiger"
+                inhalt = AsbBinär.zerteil(fluss)
+            case '&':
+                art = "addresse"
+                inhalt = AsbBinär.zerteil(fluss)
 
             case name if fluss.schau() == '(':
                 art = "aufruf"
                 inhalt = AsbAufruf.zerteil(fluss, name)
 
             case wort:
-                art = "zugriff"
+                art = "variable"
                 inhalt = wort
 
 
         return kls(art, inhalt)
+
+    def lokale(selbst, menge):
+        if selbst.art == "variable":
+            menge.add(selbst.inhalt)
+
+    def lade(selbst, gk, gib):
+        match selbst.art:
+            case 'zahl' | 'zeichen': 
+                gib(f"mov rax, {selbst.inhalt}")
+            case 'minus':
+                selbst.inhalt.lade(gk, gib)
+                gib("neg rax")
+            case 'variable':
+                if selbst.inhalt not in gk.symbole():
+                    fehler(f"Versuchte das Symbol `{selbst.inhalt}` zu laden, aber dieses wurde nicht definiert.")
+
+                if selbst.inhalt in gk.variablen:
+                    virtuelle_addresse = gk.variablen[selbst.inhalt]
+                    gib(f"mov rax, [rbp-{virtuelle_addresse}]")
+                if selbst.inhalt in gk.konstantent:
+                    gk.konstantent[selbst.inhalt].lade(gk, gib)
+
+            case 'zeiger':
+                gib("mov rax, [rax]")
+            case 'aufruf':
+                selbst.inhalt.zusammenstell(gk, gib)
+            case 'zk':
+                zk_beschriftung = gk.frisch()
+                gk.zk[zk_beschriftung] = selbst.inhalt
+                gib(f"mov rax, {zk_beschriftung}")
+
+    def speicher(selbst, gk, gib):
+        match selbst.art:
+            case 'zahl':   fehler("Versuchte eine Zahl zu überschreiben.")
+            case 'zeichen':fehler("Versuchte eine Zeichenkonstante zu überschreiben.")
+            case 'minus':  fehler("Versuchte einen Minusausdruck zu überschreiben.")
+            case 'variable':
+                virtuelle_addresse = gk.variablen[selbst.inhalt]
+                gib(f"mov [rbp-{virtuelle_addresse}], rax")
+            case 'zeiger':
+                gib('push rax')
+                selbst.inhalt.lade(gk, gib)
+                gib('pop rbx')
+                gib('mov [rbx], rax')
 
 
 
@@ -174,19 +255,41 @@ class AsbBinär:
         rechts = AsbBinär.zerteil(fluss)
         return kls(links, rechts, operator)
 
+    def lokale(selbst, menge):
+        pass
+
+    def lade(selbst, gk, gib):
+        selbst.rechts.lade(gk, gib)
+        gib("push rax")
+        selbst.links.lade(gk, gib)
+        gib("pop rbx")
+
+        match selbst.operator:
+            case '+': gib("add rax, rbx")
+            case '-': gib("sub rax, rbx")
+            case '*': gib("mul rbx")
+
 @dk
 class AsbTu:
-    variable : str
-    quelle   : AsbBinär
+    ziel   : AsbBinär
+    quelle : AsbBinär
 
     @classmethod
     def zerteil(kls, fluss):
         fluss.erwarte("tu")
-        variable = fluss.nimm()
+        variable = AsbBinär.zerteil(fluss)
         fluss.erwarte("=")
         quelle = AsbBinär.zerteil(fluss)
         fluss.erwarte(";")
         return kls(variable, quelle)
+
+    def lokale(selbst, menge):
+        selbst.ziel.lokale(menge)
+
+    def zusammenstell(selbst, gk, gib):
+        selbst.quelle.lade(gk, gib)
+        selbst.ziel.speicher(gk, gib)
+
 
 
 @dk
@@ -200,6 +303,13 @@ class AsbRück:
         fluss.erwarte(";")
         return kls(ziel)
 
+    def lokale(selbst, _):
+        pass
+
+    def zusammenstell(selbst, gk, gib):
+        gib("leave")
+        gib("ret")
+
 @dk
 class AsbSolang: 
     bedingung : AsbBinär
@@ -211,6 +321,24 @@ class AsbSolang:
         bedingung = AsbBinär.zerteil(fluss)
         körper    = AsbAbschnitt.zerteil(fluss)
         return kls(bedingung, körper)
+
+    def lokale(selbst, menge):
+        selbst.körper.lokale(menge)
+
+    def zusammenstell(selbst, gk, gib):
+        überspring_beschriftung = gk.frisch()
+        schleifen_beschriftung  = gk.frisch()
+
+        gib(f"{schleifen_beschriftung}:")
+        selbst.bedingung.lade(gk, gib)
+        gib(f"cmp rax, 0")
+        gib(f"je {überspring_beschriftung}")
+
+        selbst.körper.zusammenstell(gk, gib)
+
+        gib(f"jmp {schleifen_beschriftung}")
+        gib(f"{überspring_beschriftung}:")
+
 
 @dk
 class AsbFalls: 
@@ -224,6 +352,9 @@ class AsbFalls:
         körper    = AsbAbschnitt(fluss)
         return kls(bedingung, körper)
 
+    def lokale(selbst, menge):
+        selbst.körper.lokale(menge)
+
 @dk
 class AsbAusdruck: 
     ziel : AsbBinär
@@ -233,6 +364,12 @@ class AsbAusdruck:
         ziel = AsbBinär.zerteil(fluss)
         fluss.erwarte(";")
         return kls(ziel)
+
+    def lokale(selbst, _):
+        pass
+
+    def zusammenstell(selbst, gk, gib):
+        selbst.ziel.lade(gk, gib)
 
 
 @dk
@@ -262,6 +399,14 @@ class AsbAbschnitt:
         fluss.erwarte("zu")
         return kls(aussagen)
 
+    def lokale(selbst, menge):
+        for aussage in selbst.aussagen:
+            aussage.lokale(menge)
+
+    def zusammenstell(selbst, gk, gib):
+        for aussage in selbst.aussagen:
+            aussage.zusammenstell(gk, gib)
+
 
 @dk
 class AsbProzedur:
@@ -285,10 +430,49 @@ class AsbProzedur:
         körper = AsbAbschnitt.zerteil(fluss)
         return kls(name, parameter, körper)
 
+    def zusammenstell(selbst, gk, gib):
+        gib(f"Prozedur_{selbst.name}:")
+        lokale_variablen_menge = set(selbst.parameter)
+        selbst.körper.lokale(lokale_variablen_menge)
+        lokale_variablen = len(lokale_variablen_menge)
+
+        gk.variablen = { name : (vaddr+1) * 8 for vaddr,name in enumerate(lokale_variablen_menge) }
+
+        register = REGISTER[:len(selbst.parameter)]
+        for name, quelle in zip(selbst.parameter, register):
+            virtuelle_addresse = gk.variablen[name]
+            gib(f"mov [rbp-{virtuelle_addresse}], {quelle}")
+
+
+        gib("push rbp")
+        gib("mov  rbp, rsp")
+        if lokale_variablen:
+            gib(f"sub  rsp, {8*lokale_variablen}")
+
+        selbst.körper.zusammenstell(gk, gib)
+
+        gib("leave")
+        gib("ret")
+
+
+@dk
+class GlobalerKontext:
+    konstantent : dict[str, int]
+    variablen   : dict[str, int]
+    zk          : dict[str, str] = feld(default_factory=lambda: {})
+    __frisch_index : int = 0
+
+    def frisch(selbst):
+        selbst.__frisch_index += 1
+        return f"__Frisch_{selbst.__frisch_index}"
+
+    def symbole(selbst):
+        return selbst.konstantent | selbst.variablen
+
 
 @dk
 class AsbProgramm:
-    prodezuren : list[AsbProzedur]
+    prozeduren : list[AsbProzedur]
     konstantent : dict[str, int]
 
     @classmethod
@@ -314,12 +498,35 @@ class AsbProgramm:
 
         return kls(prozeduren, konstantent)
 
+    def zusammenstell(selbst, gib):
+        gk = GlobalerKontext(selbst.konstantent, {})
+        
+        for prozedur in selbst.prozeduren:
+            prozedur.zusammenstell(gk, gib)
+
+
+
+def Kopfzeilen(gib):
+    gib("format PE")
+    gib("entry start")
+    gib("section '.text' code readable executable")
+    gib("start:")
+    gib("call Haupt")
+    gib("hlt")
+
 
 def Haupt():
     pfad  = sys.argv[1]
     fluss = LexAnalyse(pfad)
     wurzel = AsbProgramm.zerteil(fluss)
-    print(wurzel)
+
+    zusammenbau = []
+    gib = lambda x: zusammenbau.append(x)
+
+    wurzel.zusammenstell(gib)
+
+    ausgabe = "\n".join(zusammenbau)
+    print(ausgabe)
 
 
 
