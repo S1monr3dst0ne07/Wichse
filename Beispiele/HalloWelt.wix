@@ -2,7 +2,7 @@
 prozedur ZK::Länge(zk)
 auf
     tu länge = 0;
-    solang *(zk+länge) != ›\0‹
+    solang (*(zk+länge)) & 255
     auf
         tu länge = länge + 1;
     zu
@@ -11,23 +11,22 @@ auf
 zu
 
 
-konstant STD_OUTPUT_HANDLE = -11;
+
+konstant OUTPUT_GRIFF = NimStdGriff(-11);
 
 prozedur Druck(nachricht)
 auf
-    tu griff = GetStdHandel(STD_OUTPUT_HANDLE);
-    tu geschrieben = 0;
     tu länge = ZK::Länge(nachricht);
-
-    tu erfolg = WriteFile(griff, nachricht, länge, &geschrieben);
-
-    rück erfolg;
+    tu erfolg = SchreibDatei(OUTPUT_GRIFF, nachricht, länge, 0);
 zu
 
 
 prozedur Haupt()
 auf
-    Druck(»Hello, Welt!«);
+    tu zk = »Hallo, Welt!«;
+    Druck(zk);
+
+    SchliessProzess(0);
 zu
 
 

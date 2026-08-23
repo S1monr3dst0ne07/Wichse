@@ -254,7 +254,7 @@ class AsbUnär:
                 gib('push rax')
                 selbst.inhalt.lade(gk, gib)
                 gib('pop rbx')
-                gib('mov [rbx], rax')
+                gib('mov [rax], rbx')
 
 
 
@@ -290,6 +290,7 @@ class AsbBinär:
             case '+': gib("add rax, rbx")
             case '-': gib("sub rax, rbx")
             case '*': gib("mul rbx")
+            case '&': gib("and rax, rbx")
 
             case '!=':
                 gib("cmp rax, rbx")
@@ -337,6 +338,7 @@ class AsbRück:
         pass
 
     def zusammenstell(selbst, gk, gib):
+        selbst.ziel.lade(gk, gib)
         gib("leave")
         gib("ret")
 
