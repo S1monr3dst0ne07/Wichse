@@ -54,7 +54,6 @@ class Fluss:
         ist = self.schau_marke()
         if ist.inhalt != soll:
             print(f"Syntaxfehler in Zeile {ist.zeile}: Erwarte `{soll}`, aber habe `{ist.inhalt}` bekomment.")
-            fuck()
             sys.exit(1)
         self.nimm()
 
@@ -102,7 +101,14 @@ def LexAnalyse(pfad):
     return Fluss(fluss)
 
 
-REGISTER = ['rcx', 'rbx', 'r8', 'r9']
+def ProzedurName(name):
+    name_sauber = name.translate({
+        ord(':') : ord('_'),
+    })
+    return f"Prozedur_{name_sauber}"
+
+
+REGISTER = ['rcx', 'rdx', 'r8', 'r9']
 
 
 @dk
@@ -135,7 +141,22 @@ class AsbAufruf:
         for ziel in register:
             gib(f"pop {ziel}")
 
-        gib(f"call Prozedur_{selbst.name}")
+        if selbst.name in gk.prozeduren:
+            gib(f"call {ProzedurName(selbst.name)}")
+        else:
+            # dynamischer system aufruf.
+            # windows ist ein beschissenes betriebsystem.
+            # 32 bytes müssen auf dem stack frei sein.
+            # und der stackzeiger muss 16-byte addressangeglichen sein.
+            # warum? frag mich nicht. frag die hurensohn windows
+            # entwickler bei microslop. komplett kranke x64 ABI
+            gib("push rbp")
+            gib("mov  rbp, rsp")
+            gib("and  rsp, -16")
+            gib("sub  rsp, 20h")
+            gib(f"call [{ProzedurName(selbst.name)}]")
+            gib("mov  rsp, rbp")
+            gib("pop  rbp")
 
 
 def fehler(msg):
@@ -212,6 +233,7 @@ class AsbUnär:
                     gk.konstantent[selbst.inhalt].lade(gk, gib)
 
             case 'zeiger':
+                selbst.inhalt.lade(gk, gib)
                 gib("mov rax, [rax]")
             case 'aufruf':
                 selbst.inhalt.zusammenstell(gk, gib)
@@ -268,6 +290,14 @@ class AsbBinär:
             case '+': gib("add rax, rbx")
             case '-': gib("sub rax, rbx")
             case '*': gib("mul rbx")
+
+            case '!=':
+                gib("cmp rax, rbx")
+                gib("setne cl")
+                gib("movzx rax, cl")
+
+            case op:
+                print(f"IMPL. OP. {op}")
 
 @dk
 class AsbTu:
@@ -431,26 +461,21 @@ class AsbProzedur:
         return kls(name, parameter, körper)
 
     def zusammenstell(selbst, gk, gib):
-        gib(f"Prozedur_{selbst.name}:")
+        gib(ProzedurName(selbst.name) + ":")
         lokale_variablen_menge = set(selbst.parameter)
         selbst.körper.lokale(lokale_variablen_menge)
         lokale_variablen = len(lokale_variablen_menge)
 
         gk.variablen = { name : (vaddr+1) * 8 for vaddr,name in enumerate(lokale_variablen_menge) }
 
+        gib(f"enter {8*lokale_variablen}, 0")
+
         register = REGISTER[:len(selbst.parameter)]
         for name, quelle in zip(selbst.parameter, register):
             virtuelle_addresse = gk.variablen[name]
             gib(f"mov [rbp-{virtuelle_addresse}], {quelle}")
 
-
-        gib("push rbp")
-        gib("mov  rbp, rsp")
-        if lokale_variablen:
-            gib(f"sub  rsp, {8*lokale_variablen}")
-
         selbst.körper.zusammenstell(gk, gib)
-
         gib("leave")
         gib("ret")
 
@@ -458,7 +483,8 @@ class AsbProzedur:
 @dk
 class GlobalerKontext:
     konstantent : dict[str, int]
-    variablen   : dict[str, int]
+    prozeduren  : list[str]
+    variablen   : dict[str, int] = None
     zk          : dict[str, str] = feld(default_factory=lambda: {})
     __frisch_index : int = 0
 
@@ -499,20 +525,44 @@ class AsbProgramm:
         return kls(prozeduren, konstantent)
 
     def zusammenstell(selbst, gib):
-        gk = GlobalerKontext(selbst.konstantent, {})
+        gk = GlobalerKontext(
+            selbst.konstantent, 
+            list(proz.name for proz in selbst.prozeduren)
+        )
         
+        gib("format PE64")
+        gib("entry start")
+        gib("section '.text' code readable executable")
+        gib("start:")
+        gib(f"call {ProzedurName('Haupt')}")
+        gib("hlt")
+
         for prozedur in selbst.prozeduren:
             prozedur.zusammenstell(gk, gib)
 
+        gib("section '.data' data readable writeable")
+        for name, zk in gk.zk.items():
+            gib(f"{name} db '{zk}', 0")
+
+        # windows. wir alles hassen es.
+        gib("section '.idata' import data readable writeable")
+        gib("   dd  0,0,0,RVA kernel_name,RVA kernel_table")
+        gib("   dd  0,0,0,0,0")
+
+        gib("kernel_table:")
+        gib("   Prozedur_SchliessProzess     dq RVA _ExitProcess")
+        gib("   Prozedur_NimStdGriff         dq RVA _GetStdHandle")
+        gib("   Prozedur_SchreibDatei        dq RVA _WriteFile")
+        gib("                                dq 0")
+
+        gib("kernel_name db 'KERNEL32.DLL',0")
+        gib("user_name   db 'USER32.DLL',0")
+
+        gib("_ExitProcess  db 0,0,'ExitProcess',0")
+        gib("_GetStdHandle db 0,0,'GetStdHandle',0")
+        gib("_WriteFile    db 0,0,'WriteFile',0")
 
 
-def Kopfzeilen(gib):
-    gib("format PE")
-    gib("entry start")
-    gib("section '.text' code readable executable")
-    gib("start:")
-    gib("call Haupt")
-    gib("hlt")
 
 
 def Haupt():
@@ -526,7 +576,8 @@ def Haupt():
     wurzel.zusammenstell(gib)
 
     ausgabe = "\n".join(zusammenbau)
-    print(ausgabe)
+    with open("build.asm", "w") as f:
+        f.write(ausgabe)
 
 
 
