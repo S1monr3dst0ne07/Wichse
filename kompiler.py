@@ -77,6 +77,7 @@ def LexAnalyse(pfad):
             puffer.pop(-1)
             match zeichen:
                 case '0': puffer.append('\0')
+                case 'z': puffer.append('\n')
             kontrol_zeichen = False
             continue
 
@@ -544,7 +545,8 @@ class AsbProgramm:
 
         gib("section '.data' data readable writeable")
         for name, zk in gk.zk.items():
-            gib(f"{name} db '{zk}', 0")
+            daten = ','.join(str(ord(zeichen)) for zeichen in zk + '\0')
+            gib(f"{name} db {daten}")
 
         # windows. wir alles hassen es.
         gib("section '.idata' import data readable writeable")
@@ -555,14 +557,16 @@ class AsbProgramm:
         gib("   Prozedur_SchliessProzess     dq RVA _ExitProcess")
         gib("   Prozedur_NimStdGriff         dq RVA _GetStdHandle")
         gib("   Prozedur_SchreibDatei        dq RVA _WriteFile")
+        gib("   Prozedur_NimModulGriff       dq RVA _GetModuleHandleA")
         gib("                                dq 0")
 
         gib("kernel_name db 'KERNEL32.DLL',0")
         gib("user_name   db 'USER32.DLL',0")
 
-        gib("_ExitProcess  db 0,0,'ExitProcess',0")
-        gib("_GetStdHandle db 0,0,'GetStdHandle',0")
-        gib("_WriteFile    db 0,0,'WriteFile',0")
+        gib("_ExitProcess       db 0,0,'ExitProcess',0")
+        gib("_GetStdHandle      db 0,0,'GetStdHandle',0")
+        gib("_WriteFile         db 0,0,'WriteFile',0")
+        gib("_GetModuleHandleA  db 0,0,'GetModuleHandleA',0")
 
 
 
