@@ -12,18 +12,19 @@ zu
 
 
 
-konstant OUTPUT_GRIFF = NimStdGriff(-11);
+konstant DRUCK_GRIFF = NimStdGriff(-11);
 
 prozedur Druck(nachricht)
 auf
     tu länge = ZK::Länge(nachricht);
-    tu erfolg = SchreibDatei(OUTPUT_GRIFF, nachricht, länge, 0);
+    tu erfolg = SchreibDatei(DRUCK_GRIFF, nachricht, länge, 0);
 zu
 
 
 prozedur Haupt()
 auf
-    tu zk = »Hallo, Welt!«;
+
+    tu zk = »Hallo, Welt!\z«;
     Druck(zk);
 
     SchliessProzess(0);
