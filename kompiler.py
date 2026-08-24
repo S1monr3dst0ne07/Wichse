@@ -1,7 +1,9 @@
-import sys
 from dataclasses import dataclass as dk #datenklass
 from dataclasses import field     as feld
 from typing import Any
+import subprocess
+import tempfile
+import sys, os
 
 
 def ZeichenEinOrdne(zeichen):
@@ -602,11 +604,16 @@ def Haupt():
     gib = lambda x: zusammenbau.append(x)
 
     wurzel.zusammenstell(gib)
-
     ausgabe = "\n".join(zusammenbau)
-    with open("build.asm", "w") as f:
-        f.write(ausgabe)
 
+    hintergriff, hinterpfad = tempfile.mkstemp(suffix=".asm")
+    try:
+        with os.fdopen(hintergriff, "w", encoding="utf-8") as griff:
+            griff.write(ausgabe)
+
+        subprocess.run(["FASM.EXE", hinterpfad, "BAUWERT.EXE"])
+    finally:
+        os.remove(hinterpfad)
 
 
 if __name__ == "__main__":
