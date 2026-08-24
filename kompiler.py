@@ -10,6 +10,7 @@ def ZeichenEinOrdne(zeichen):
         case x if x.isalpha(): return "wort"
         case '_':              return "wort"
         case ':':              return "wort"
+        case '§':              return "wort"
 
         #Klammern müssen immer direkt
         # als Marken abgegeben werden. 
@@ -499,10 +500,18 @@ class GlobalerKontext:
         return selbst.konstantent | selbst.variablen
 
 
+bekannte_programm_pfad = set()
+
 @dk
 class AsbProgramm:
     prozeduren : list[AsbProzedur]
     konstantent : dict[str, int]
+
+
+    @classmethod
+    def analysis(kls, pfad):
+        fluss = LexAnalyse(pfad)
+        return kls.zerteil(fluss)
 
     @classmethod
     def zerteil(kls, fluss):
@@ -521,6 +530,20 @@ class AsbProgramm:
                     fluss.erwarte(";")
 
                     konstantent[name] = wert
+                case 'schließ':
+                    fluss.erwarte("schließ")
+                    pfad = fluss.nimm().strip("»«")
+                    fluss.erwarte("ein")
+
+                    if pfad in bekannte_programm_pfad:
+                        continue
+
+                    bekannte_programm_pfad.add(pfad)
+                    unterwurzel = kls.analysis(pfad)
+
+                    prozeduren  +=     unterwurzel.prozeduren
+                    konstantent.update(unterwurzel.konstantent)
+
                 case wort:
                     print(f"Unbekannes Hauptwort: `{wort}`")
                     sys.exit(1)
@@ -573,8 +596,7 @@ class AsbProgramm:
 
 def Haupt():
     pfad  = sys.argv[1]
-    fluss = LexAnalyse(pfad)
-    wurzel = AsbProgramm.zerteil(fluss)
+    wurzel = AsbProgramm.analysis(pfad)
 
     zusammenbau = []
     gib = lambda x: zusammenbau.append(x)
