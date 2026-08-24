@@ -1,0 +1,16 @@
+
+
+
+prozedur ZK§Länge(zk)
+auf
+    tu länge = 0;
+    solang (*(zk+länge)) & 255
+    auf
+        tu länge = länge + 1;
+    zu
+
+    rück länge;
+zu
+
+
+

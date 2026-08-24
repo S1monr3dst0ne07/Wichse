@@ -1,28 +1,19 @@
 
-prozedur ZK::Länge(zk)
-auf
-    tu länge = 0;
-    solang (*(zk+länge)) & 255
-    auf
-        tu länge = länge + 1;
-    zu
-
-    rück länge;
-zu
-
+schließ »Bücher/ZK.wix« ein
 
 
 konstant DRUCK_GRIFF = NimStdGriff(-11);
 
 prozedur Druck(nachricht)
 auf
-    tu länge = ZK::Länge(nachricht);
+    tu länge = ZK§Länge(nachricht);
     tu erfolg = SchreibDatei(DRUCK_GRIFF, nachricht, länge, 0);
 zu
 
 
 prozedur Haupt()
 auf
+    tu instanz = NimModulGriff(0);
 
     tu zk = »Hallo, Welt!\z«;
     Druck(zk);
