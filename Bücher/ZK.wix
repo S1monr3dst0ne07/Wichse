@@ -1,5 +1,5 @@
 
-
+schließ »Bücher/Fenster.wix« ein
 
 prozedur ZK§Länge(zk)
 auf
@@ -11,6 +11,21 @@ auf
 
     rück länge;
 zu
+
+prozedur ZK§Druck(nachricht)
+auf
+    tu länge = ZK§Länge(nachricht);
+    tu erfolg = SchreibDatei(
+        Fenster§STANDARD_AUSGABE_GRIFF, 
+        nachricht, 
+        länge, 
+        0,
+    );
+
+    rück erfolg;
+zu
+
+
 
 
 
