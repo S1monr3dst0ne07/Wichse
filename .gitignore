@@ -1,3 +1,4 @@
 *.exe
 make.bat
 build.asm
+*.swp

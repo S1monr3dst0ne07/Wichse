@@ -227,14 +227,21 @@ class AsbUnär:
                 selbst.inhalt.lade(gk, gib)
                 gib("neg rax")
             case 'variable':
-                if selbst.inhalt not in gk.symbole():
-                    fehler(f"Versuchte das Symbol `{selbst.inhalt}` zu laden, aber dieses wurde nicht definiert.")
-
                 if selbst.inhalt in gk.variablen:
                     virtuelle_addresse = gk.variablen[selbst.inhalt]
                     gib(f"mov rax, [rbp-{virtuelle_addresse}]")
+                    return
                 if selbst.inhalt in gk.konstantent:
                     gk.konstantent[selbst.inhalt].lade(gk, gib)
+                    return
+
+                resultat = gk.suche_schema_größe_bei_name(selbst.inhalt)
+                if resultat is not None:
+                    gib(f"mov rax, {resultat}")
+                    return
+
+                fehler(f"Versuchte das Symbol `{selbst.inhalt}` zu laden, aber dieses wurde nicht definiert.")
+
 
             case 'zeiger':
                 selbst.inhalt.lade(gk, gib)
@@ -490,6 +497,7 @@ class AsbProzedur:
 class GlobalerKontext:
     konstantent : dict[str, int]
     prozeduren  : list[str]
+    schemata    : list
     variablen   : dict[str, int] = None
     zk          : dict[str, str] = feld(default_factory=lambda: {})
     __frisch_index : int = 0
@@ -498,16 +506,55 @@ class GlobalerKontext:
         selbst.__frisch_index += 1
         return f"__Frisch_{selbst.__frisch_index}"
 
-    def symbole(selbst):
-        return selbst.konstantent | selbst.variablen
+    def suche_schema_größe_bei_name(selbst, name):
+        for schema in selbst.schemata:
+            if schema.name == name:
+                return len(schema.felder)
+
+@dk
+class AsbSchema:
+    name   : str
+    felder : list[str]
+    größen : list[int]
+
+    @classmethod
+    def zerteil(kls, fluss):
+        felder = []
+        größen = []
+
+        fluss.erwarte("schema")
+        name = fluss.nimm()
+        fluss.erwarte("auf")
+
+        while fluss.schau() != "zu":
+            feld = fluss.nimm() 
+            fluss.erwarte(":")
+            größe = int(fluss.nimm())
+
+            if fluss.schau() == ",":
+                fluss.erwarte(",")
+
+            felder.append(feld)
+            größen.append(größe)
+
+        fluss.erwarte("zu")
+
+        return kls(name, felder, größen)
+
+
+
+
+
+
 
 
 bekannte_programm_pfad = set()
 
 @dk
 class AsbProgramm:
-    prozeduren : list[AsbProzedur]
+    prozeduren  : list[AsbProzedur]
     konstantent : dict[str, int]
+    schemata    : list
 
 
     @classmethod
@@ -519,6 +566,7 @@ class AsbProgramm:
     def zerteil(kls, fluss):
         prozeduren  = []
         konstantent = {}
+        schemata    = []
 
         while fluss.hat():
             match fluss.schau():
@@ -546,16 +594,20 @@ class AsbProgramm:
                     prozeduren  +=     unterwurzel.prozeduren
                     konstantent.update(unterwurzel.konstantent)
 
+                case 'schema':
+                    schemata.append(AsbSchema.zerteil(fluss))
+
                 case wort:
                     print(f"Unbekannes Hauptwort: `{wort}`")
                     sys.exit(1)
 
-        return kls(prozeduren, konstantent)
+        return kls(prozeduren, konstantent, schemata)
 
     def zusammenstell(selbst, gib):
         gk = GlobalerKontext(
             selbst.konstantent, 
-            list(proz.name for proz in selbst.prozeduren)
+            list(proz.name for proz in selbst.prozeduren),
+            selbst.schemata
         )
         
         gib("format PE64")
@@ -569,6 +621,7 @@ class AsbProgramm:
             prozedur.zusammenstell(gk, gib)
 
         gib("section '.data' data readable writeable")
+        gib("platzhalter db 0") #.data sektion kann nich leer sein
         for name, zk in gk.zk.items():
             daten = ','.join(str(ord(zeichen)) for zeichen in zk + '\0')
             gib(f"{name} db {daten}")
@@ -579,10 +632,13 @@ class AsbProgramm:
         gib("   dd  0,0,0,0,0")
 
         gib("kernel_table:")
-        gib("   Prozedur_SchliessProzess     dq RVA _ExitProcess")
+        gib("   Prozedur_SchließProzess      dq RVA _ExitProcess")
         gib("   Prozedur_NimStdGriff         dq RVA _GetStdHandle")
         gib("   Prozedur_SchreibDatei        dq RVA _WriteFile")
         gib("   Prozedur_NimModulGriff       dq RVA _GetModuleHandleA")
+        gib("   Prozedur_NimProzessHaufen    dq RVA _GetProcessHeap")
+        gib("   Prozedur_HaufenZuweise       dq RVA _HeapAlloc")
+        gib("   Prozedur_HaufenAbweise       dq RVA _HeapFree")
         gib("                                dq 0")
 
         gib("kernel_name db 'KERNEL32.DLL',0")
@@ -592,6 +648,9 @@ class AsbProgramm:
         gib("_GetStdHandle      db 0,0,'GetStdHandle',0")
         gib("_WriteFile         db 0,0,'WriteFile',0")
         gib("_GetModuleHandleA  db 0,0,'GetModuleHandleA',0")
+        gib("_GetProcessHeap    db 0,0,'GetProcessHeap',0")
+        gib("_HeapAlloc         db 0,0,'HeapAlloc',0")
+        gib("_HeapFree          db 0,0,'HeapFree',0")
 
 
 
@@ -611,7 +670,7 @@ def Haupt():
         with os.fdopen(hintergriff, "w", encoding="utf-8") as griff:
             griff.write(ausgabe)
 
-        subprocess.run(["FASM.EXE", hinterpfad, "BAUWERT.EXE"])
+        subprocess.run(["FASM.EXE", hinterpfad, "BAUWERK.EXE"])
     finally:
         os.remove(hinterpfad)
 
