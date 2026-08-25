@@ -1,5 +1,5 @@
 
-konstant Fenster§STANDARD_AUSGABE_GRIFF = NimStdGriff(-11);
+konstant Fenster§STANDARD_AUSGABE_GRIFF = aus NimStdGriff(-11);
 
 
 

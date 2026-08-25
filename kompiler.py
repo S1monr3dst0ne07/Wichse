@@ -135,32 +135,63 @@ class AsbAufruf:
 
     def zusammenstell(selbst, gk, gib):
         if len(selbst.parameter) > 4:
-            print(f"Warnung: Mehr als 4 parameter im Aufruf zu `{selbst.name}`.")
+            fehler(f"Mehr als 4 parameter im Aufruf zu `{selbst.name}`.")
+            sys.exit(1)
 
         register = REGISTER[:len(selbst.parameter)]
         for ausdruck in selbst.parameter[::-1]:
             ausdruck.lade(gk, gib)
             gib("push rax")
-
         for ziel in register:
             gib(f"pop {ziel}")
 
-        if selbst.name in gk.prozeduren:
-            gib(f"call {ProzedurName(selbst.name)}")
-        else:
-            # dynamischer system aufruf.
-            # windows ist ein beschissenes betriebsystem.
-            # 32 bytes müssen auf dem stack frei sein.
-            # und der stackzeiger muss 16-byte addressangeglichen sein.
-            # warum? frag mich nicht. frag die hurensohn windows
-            # entwickler bei microslop. komplett kranke x64 ABI
-            gib("push rbp")
-            gib("mov  rbp, rsp")
-            gib("and  rsp, -16")
-            gib("sub  rsp, 20h")
-            gib(f"call [{ProzedurName(selbst.name)}]")
-            gib("mov  rsp, rbp")
-            gib("pop  rbp")
+        gib(f"call {ProzedurName(selbst.name)}")
+
+
+@dk
+class AsbAusAufruf:
+    name : str
+    parameter : Any
+
+    @classmethod
+    def zerteil(kls, fluss):
+        name = fluss.nimm()
+        fluss.erwarte("(")
+
+        parameter = []
+        while fluss.schau() != ')':
+            parameter.append(AsbBinär.zerteil(fluss))
+            if fluss.schau() == ',':
+                fluss.nimm()
+
+        fluss.erwarte(")")
+        return kls(name, parameter)
+
+    def zusammenstell(selbst, gk, gib):
+        schnell_teil = selbst.parameter[:4]
+        stapel_teil  = selbst.parameter[4:]
+
+        # lade schnelle parameter in die übergaberegister
+        register = REGISTER[:len(selbst.parameter)]
+        for ausdruck, ziel in zip(selbst.parameter, register):
+            ausdruck.lade(gk, gib)
+            gib(f"mov {ziel}, rax")
+
+        # versichere, dass der Stack aligned ist,
+        # und dass die Schattenregion existiert.
+        gib("push rbp")
+        gib("mov  rbp, rsp")
+        gib("and  rsp, -16")
+        gib("sub  rsp, 20h")
+
+        # TODO: hier funktionieren lokalle zugriffe nicht!
+        for rest in stapel_teil:
+            rest.lade(gk, gib)
+            gib("push rax")
+
+        gib(f"call [{ProzedurName(selbst.name)}]")
+        gib("mov  rsp, rbp")
+        gib("pop  rbp")
 
 
 def fehler(msg):
@@ -208,6 +239,10 @@ class AsbUnär:
                 art = "aufruf"
                 inhalt = AsbAufruf.zerteil(fluss, name)
 
+            case 'aus':
+                art = "ausruf"
+                inhalt = AsbAusAufruf.zerteil(fluss)
+
             case wort:
                 art = "variable"
                 inhalt = wort
@@ -246,7 +281,7 @@ class AsbUnär:
             case 'zeiger':
                 selbst.inhalt.lade(gk, gib)
                 gib("mov rax, [rax]")
-            case 'aufruf':
+            case 'aufruf' | 'ausruf':
                 selbst.inhalt.zusammenstell(gk, gib)
             case 'zk':
                 zk_beschriftung = gk.frisch()
@@ -708,6 +743,7 @@ def Haupt():
 
     wurzel.zusammenstell(gib)
     ausgabe = "\n".join(zusammenbau)
+    print(ausgabe)
 
     hintergriff, hinterpfad = tempfile.mkstemp(suffix=".asm")
     try:

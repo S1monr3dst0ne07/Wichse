@@ -15,8 +15,9 @@ zu
 prozedur ZK§Druck(nachricht)
 auf
     tu länge = ZK§Länge(nachricht);
-    tu erfolg = SchreibDatei(
-        Fenster§STANDARD_AUSGABE_GRIFF, 
+    tu test = Fenster§STANDARD_AUSGABE_GRIFF;
+    tu erfolg = aus SchreibDatei(
+        test,
         nachricht, 
         länge, 
         0,

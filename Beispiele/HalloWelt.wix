@@ -7,7 +7,7 @@ auf
     tu zk = »Hallo, Welt!\z«;
     ZK§Druck(zk);
 
-    SchließProzess(0);
+    aus SchließProzess(0);
 zu
 
 
