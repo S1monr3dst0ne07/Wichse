@@ -235,7 +235,7 @@ class AsbUnär:
                     gk.konstantent[selbst.inhalt].lade(gk, gib)
                     return
 
-                resultat = gk.suche_schema_größe_bei_name(selbst.inhalt)
+                resultat = len(gk.suche_schema_bei_name(selbst.inhalt).felder)
                 if resultat is not None:
                     gib(f"mov rax, {resultat}")
                     return
@@ -310,6 +310,42 @@ class AsbBinär:
 
             case op:
                 print(f"IMPL. OP. {op}")
+
+    def speicher(selbst, gk, gib):
+        match selbst.operator:
+            case '.':
+                links = selbst.links
+                rechts = selbst.rechts
+                schemabezeichnung = rechts.inhalt
+
+                if rechts.art != "variable":
+                    fehler("Rechte Seite eines Punktausrucks ist keine Variable.")
+                if "§" not in schemabezeichnung:
+                    fehler(f"Unbekannte Schemabezeichnung: `{schemabezeichnung}`")
+
+                schemaname, schemafeld = schemabezeichnung.split("§")
+                schema = gk.suche_schema_bei_name(schemaname)
+                if schemafeld not in schema.felder:
+                    fehler(f"Das Schemafeld `{schemafeld}` ist nicht present in `{schemaname}`")
+                index = schema.felder.index(schemafeld)
+                größe = schema.größen[index]
+                verschiebung = sum(schema.größen[:index])
+
+                gib("push rax")
+                selbst.links.lade(gk, gib)
+                gib(f"add rax, {verschiebung}")
+                gib("pop rbx")
+                match größe:
+                    case 8: gib("mov [rax], rbx")
+                    case 4: gib("mov [rax], ebx")
+
+                    case x:
+                        fehler(f"Felder der Größe {x} bytes nicht unterstützt.")
+
+            case _:
+                fehler("Versuchte in einen nicht-Punktausdruck einzuspeichern.")
+
+
 
 @dk
 class AsbTu:
@@ -506,10 +542,10 @@ class GlobalerKontext:
         selbst.__frisch_index += 1
         return f"__Frisch_{selbst.__frisch_index}"
 
-    def suche_schema_größe_bei_name(selbst, name):
+    def suche_schema_bei_name(selbst, name):
         for schema in selbst.schemata:
             if schema.name == name:
-                return len(schema.felder)
+                return schema
 
 @dk
 class AsbSchema:
@@ -629,6 +665,7 @@ class AsbProgramm:
         # windows. wir alles hassen es.
         gib("section '.idata' import data readable writeable")
         gib("   dd  0,0,0,RVA kernel_name,RVA kernel_table")
+        gib("   dd  0,0,0,RVA user_name  ,RVA user_table  ")
         gib("   dd  0,0,0,0,0")
 
         gib("kernel_table:")
@@ -641,6 +678,11 @@ class AsbProgramm:
         gib("   Prozedur_HaufenAbweise       dq RVA _HeapFree")
         gib("                                dq 0")
 
+        gib("user_table:")
+        gib("   Prozedur_LadeBildchen        dq RVA _LoadIconA")
+        gib("   Prozedur_LadeEingabemarke    dq RVA _LoadCursorA")
+        gib("                                dq 0")
+
         gib("kernel_name db 'KERNEL32.DLL',0")
         gib("user_name   db 'USER32.DLL',0")
 
@@ -651,6 +693,8 @@ class AsbProgramm:
         gib("_GetProcessHeap    db 0,0,'GetProcessHeap',0")
         gib("_HeapAlloc         db 0,0,'HeapAlloc',0")
         gib("_HeapFree          db 0,0,'HeapFree',0")
+        gib("_LoadIconA         db 0,0,'LoadIconA',0")
+        gib("_LoadCursorA       db 0,0,'LoadCursorA',0")
 
 
 
