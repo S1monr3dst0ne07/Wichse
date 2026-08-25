@@ -1,0 +1,68 @@
+
+
+schema FensterKlasse
+auf
+    Größe : 4,
+    Stil  : 4,
+    zFensterProz : 8,
+    ClsExtra : 4,
+    WndExtra : 4,
+    Instanz : 8,
+    Bildchen : 8,
+    Eingabemarke : 8
+    Hintergrund : 8,
+    zzMenüName : 8,
+    zzKlassenName : 8,
+    BildchenKlein : 8,
+zu
+
+
+
+
+
+
+prozedur Haupt()
+auf
+    tu Instanz = NimModulGriff();
+    tu HaufenGriff = NimProzessHaufen();
+
+    tu FensterKlassenName = »MeinKlassenName«;
+
+    tu FenKls = HaufenZuweise(HaufenGriff, 0, FensterKlasse);
+    tu bildchen = LadeBildchen(0, 32512);
+    tu FenKls.FensterKlasse§Größe = FensterKlasse;
+    tu FenKls.FensterKlasse§Stil  = 0;
+    tu FenKls.FensterKlasse§zFensterProz = 0;
+    tu FenKls.FensterKlasse§ClsExtra = 0;
+    tu FenKls.FensterKlasse§WndExtra = 0;
+    tu FenKls.FensterKlasse§Instanz = Instanz;
+    tu FenKls.FensterKlasse§Bildchen = bildchen;
+    tu FenKls.FensterKlasse§Eingabemarke = LadeEingabemarke(0, 32512);
+    tu FenKls.FensterKlasse§Hintergrund = 6;
+    tu FenKls.FensterKlasse§zzMenüName = 0;
+    tu FenKls.FensterKlasse§zzKlassenName = FensterKlassenName;
+    tu FenKls.FensterKlasse§BildchenKlein = bildchen;
+    RegistriereFensterKlasse(FenKls);
+
+    
+    tu FensterGriff = KreiereFenster(
+        0,
+        FensterKlassenName,
+        »Das Fenster«,
+        0,
+        0, 0, 240, 120,
+        0, 0, Instanz, 0
+    );
+        
+
+
+    SchließProzess(0);
+zu
+
+
+
+
+
+
+
+
