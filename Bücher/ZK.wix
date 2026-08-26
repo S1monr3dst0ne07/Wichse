@@ -4,7 +4,7 @@ schließ »Bücher/Einbindung.wix« ein
 prozedur ZK§Länge(zk)
 auf
     tu länge = 0;
-    solang (*(zk+länge)) & 255
+    solang b(zk+länge)
     auf
         tu länge = länge + 1;
     zu
@@ -24,6 +24,30 @@ auf
 
     rück erfolg;
 zu
+
+
+prozedur aus(zahl)
+auf
+    tu h = NimProzessHaufen();
+    tu puffer = HaufenZuweise(h, 0, 256);
+    tu i = 255;
+
+    tu b(i+puffer) = ›\0‹;
+    tu i = i - 1;
+    tu b(i+puffer) = ›\z‹;
+
+    solang zahl
+    auf
+        tu i = i - 1;
+        tu b(i+puffer) = ›0‹ + (zahl % 10);
+        tu zahl = zahl / 10;
+    zu
+
+    ZK§Druck(i+puffer);
+    HaufenAbweise(h, 0, puffer);
+zu
+
+
 
 
 
