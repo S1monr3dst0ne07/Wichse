@@ -1,0 +1,32 @@
+
+
+externe prozedur SchließProzess(status: 4) heißt »ExitProcess« von »KERNEL32.DLL«
+externe prozedur NimStdGriff(gerät: 4)     heißt »GetStdHandel« von »KERNEL32.DLL«
+externe prozedur SchreibDatei(griff: 8, puffer: 8, länge: 4, geschrieben: 8) heißt »WriteFile« von »KERNEL32.DLL«
+externe prozedur NimModulGriff(modul_name: 8) heißt »GetModuleHandleA« von »KERNEL32.DLL«
+externe prozedur NimProzessHaufen() heißt »GetProcessHeap« von »KERNEL32.DLL«
+externe prozedur HaufenZuweise(griff: 8, flaggen: 4, wörter: 8) heißt »HeapAlloc« von »KERNEL32.DLL«
+externe prozedur HaufenAbweise(griff: 8, flaggen: 4, zeiger: 8) heißt »HeapFree« von »KERNEL32.DLL«
+
+externe prozedur LadeBildchen(instanz: 8, bildname: 8) heißt »LoadIconA« von »USER32.DLL«
+externe prozedur LadeEingabemarke(instanz: 8, markenname: 8) heißt »LoadCursorA« von »USER32.DLL«
+externe prozedur RegistriereKlasse(zeiger: 8) heißt »RegisterClassExA« von »USER32.DLL«
+externe prozedur KreiereFenster(
+    stil_er: 4,
+    klassenname: 8,
+    fenstername: 8,
+    stil: 4,
+    x: 4,
+    y: 4,
+    breite: 4,
+    höhe: 4,
+    elter: 8,
+    menü: 8,
+    instanz: 8,
+    parameter: 8,
+) heißt »CreateWindowExA« von »USER32.DLL«
+
+
+
+
+

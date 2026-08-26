@@ -1,7 +1,7 @@
 
-schließ »Bücher/Fenster.wix« ein
+schließ »Bücher/Einbindung.wix« ein
 
-prozedur ZK§Länge(zk)
+prozedur ZK§Länge(zk: 8)
 auf
     tu länge = 0;
     solang (*(zk+länge)) & 255
@@ -12,12 +12,11 @@ auf
     rück länge;
 zu
 
-prozedur ZK§Druck(nachricht)
+prozedur ZK§Druck(nachricht: 8)
 auf
     tu länge = ZK§Länge(nachricht);
-    tu test = Fenster§STANDARD_AUSGABE_GRIFF;
-    tu erfolg = aus SchreibDatei(
-        test,
+    tu erfolg = SchreibDatei(
+        NimStdGriff(-11),
         nachricht, 
         länge, 
         0,

@@ -18,7 +18,19 @@ zu
 
 
 
+prozedur FensterProz(griff, nachricht, wort_param, lang_param)
+auf
+zu
 
+
+
+externe prozedur NimModulGriff()
+externe prozedur NimProzessHaufen()
+externe prozedur LadeBildchen(a: 4, b: 4)
+externe prozedur LadeEingabemarke(a: 4, b: 4)
+externe prozedur RegistriereKlasse(klasse: 8)
+externe prozedur KreiereFenster()
+externe prozedur SchließProzess(status: 8)
 
 
 prozedur Haupt()
@@ -42,7 +54,7 @@ auf
     tu FenKls.FensterKlasse§zzMenüName = 0;
     tu FenKls.FensterKlasse§zzKlassenName = FensterKlassenName;
     tu FenKls.FensterKlasse§BildchenKlein = bildchen;
-    RegistriereFensterKlasse(FenKls);
+    RegistriereKlasse(FenKls);
 
     
     tu FensterGriff = KreiereFenster(
@@ -54,7 +66,6 @@ auf
         0, 0, Instanz, 0
     );
         
-
 
     SchließProzess(0);
 zu

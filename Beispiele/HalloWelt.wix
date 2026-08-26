@@ -1,13 +1,12 @@
 
 schließ »Bücher/ZK.wix« ein
 
-
 prozedur Haupt()
 auf
     tu zk = »Hallo, Welt!\z«;
     ZK§Druck(zk);
 
-    aus SchließProzess(0);
+    SchließProzess(0);
 zu
 
 

@@ -11,7 +11,6 @@ def ZeichenEinOrdne(zeichen):
         case x if x.isdigit(): return "zahl"
         case x if x.isalpha(): return "wort"
         case '_':              return "wort"
-        case ':':              return "wort"
         case '§':              return "wort"
 
         #Klammern müssen immer direkt
@@ -134,64 +133,49 @@ class AsbAufruf:
         return kls(name, parameter)
 
     def zusammenstell(selbst, gk, gib):
-        if len(selbst.parameter) > 4:
-            fehler(f"Mehr als 4 parameter im Aufruf zu `{selbst.name}`.")
-            sys.exit(1)
+        schnell_teil = selbst.parameter[:4]
+        stapel_teil  = selbst.parameter[4:]
 
-        register = REGISTER[:len(selbst.parameter)]
-        for ausdruck in selbst.parameter[::-1]:
+        dynamisch, prozedur = gk.schlage_prozedur_nach(selbst.name)
+        pgrößen = prozedur.parameter_größen
+
+        # lade schnelle parameter in die übergaberegister
+        register = REGISTER[:len(schnell_teil)]
+        for ausdruck in schnell_teil:
             ausdruck.lade(gk, gib)
             gib("push rax")
         for ziel in register:
             gib(f"pop {ziel}")
 
-        gib(f"call {ProzedurName(selbst.name)}")
-
-
-@dk
-class AsbAusAufruf:
-    name : str
-    parameter : Any
-
-    @classmethod
-    def zerteil(kls, fluss):
-        name = fluss.nimm()
-        fluss.erwarte("(")
-
-        parameter = []
-        while fluss.schau() != ')':
-            parameter.append(AsbBinär.zerteil(fluss))
-            if fluss.schau() == ',':
-                fluss.nimm()
-
-        fluss.erwarte(")")
-        return kls(name, parameter)
-
-    def zusammenstell(selbst, gk, gib):
-        schnell_teil = selbst.parameter[:4]
-        stapel_teil  = selbst.parameter[4:]
-
-        # lade schnelle parameter in die übergaberegister
-        register = REGISTER[:len(selbst.parameter)]
-        for ausdruck, ziel in zip(selbst.parameter, register):
-            ausdruck.lade(gk, gib)
-            gib(f"mov {ziel}, rax")
-
         # versichere, dass der Stack aligned ist,
         # und dass die Schattenregion existiert.
         gib("push rbp")
-        gib("mov  rbp, rsp")
+        gib("mov  r10, rsp") #r10 darf für NICHTS anderes benutzt werden!
         gib("and  rsp, -16")
         gib("sub  rsp, 20h")
 
-        # TODO: hier funktionieren lokalle zugriffe nicht!
-        for rest in stapel_teil:
-            rest.lade(gk, gib)
-            gib("push rax")
+        for index, rest in enumerate(stapel_teil):
+            pindex = index + 4
+            if pindex < len(pgrößen):
+                fehler("Prozeduraufruf hat mehr Parameter als Prozedursignatur.")
 
-        gib(f"call [{ProzedurName(selbst.name)}]")
+            rest.lade(gk, gib)
+            match pgrößen[pindex]:
+                case 1: gib("push al")
+                case 2: gib("push ax")
+                case 4: gib("push eax")
+                case 8: gib("push rax")
+
+        #base pointer wird verzögert gesetzt,
+        # damit die stapel parameter errechnet werden können.
+        gib("mov rbp, r10") 
+        
+        if dynamisch: gib(f"call [{ProzedurName(selbst.name)}]")
+        else:         gib(f"call  {ProzedurName(selbst.name)} ")
+
         gib("mov  rsp, rbp")
         gib("pop  rbp")
+
 
 
 def fehler(msg):
@@ -239,10 +223,6 @@ class AsbUnär:
                 art = "aufruf"
                 inhalt = AsbAufruf.zerteil(fluss, name)
 
-            case 'aus':
-                art = "ausruf"
-                inhalt = AsbAusAufruf.zerteil(fluss)
-
             case wort:
                 art = "variable"
                 inhalt = wort
@@ -266,11 +246,11 @@ class AsbUnär:
                     virtuelle_addresse = gk.variablen[selbst.inhalt]
                     gib(f"mov rax, [rbp-{virtuelle_addresse}]")
                     return
-                if selbst.inhalt in gk.konstantent:
-                    gk.konstantent[selbst.inhalt].lade(gk, gib)
+                if selbst.inhalt in gk.wurzelknoten.konstantent:
+                    gk.wurzelknoten.konstantent[selbst.inhalt].lade(gk, gib)
                     return
 
-                resultat = len(gk.suche_schema_bei_name(selbst.inhalt).felder)
+                resultat = len(gk.suche_schema_beim_namen(selbst.inhalt).felder)
                 if resultat is not None:
                     gib(f"mov rax, {resultat}")
                     return
@@ -281,7 +261,7 @@ class AsbUnär:
             case 'zeiger':
                 selbst.inhalt.lade(gk, gib)
                 gib("mov rax, [rax]")
-            case 'aufruf' | 'ausruf':
+            case 'aufruf':
                 selbst.inhalt.zusammenstell(gk, gib)
             case 'zk':
                 zk_beschriftung = gk.frisch()
@@ -359,7 +339,7 @@ class AsbBinär:
                     fehler(f"Unbekannte Schemabezeichnung: `{schemabezeichnung}`")
 
                 schemaname, schemafeld = schemabezeichnung.split("§")
-                schema = gk.suche_schema_bei_name(schemaname)
+                schema = gk.suche_schema_beim_namen(schemaname)
                 if schemafeld not in schema.felder:
                     fehler(f"Das Schemafeld `{schemafeld}` ist nicht present in `{schemaname}`")
                 index = schema.felder.index(schemafeld)
@@ -525,7 +505,8 @@ class AsbAbschnitt:
 @dk
 class AsbProzedur:
     name : str
-    parameter : list[str]
+    parameter_namen  : list[str]
+    parameter_größen : list[int]
     körper : AsbAbschnitt
 
     @classmethod
@@ -534,19 +515,26 @@ class AsbProzedur:
         name = fluss.nimm()
         fluss.erwarte('(')
 
-        parameter = []
-        while fluss.schau() != ')':
-            parameter.append(fluss.nimm())
-            if fluss.schau() == ',':
-                fluss.nimm()
+        pnamen = [] 
+        pgrößen = []
+
+        while fluss.schau() != ")":
+            pname = fluss.nimm()
+            fluss.erwarte(":")
+            pgröße = int(fluss.nimm())
+            if fluss.schau() == ",": fluss.nimm()
+
+            pnamen.append(pname)
+            pgrößen.append(pgröße)
+
 
         fluss.erwarte(')')
         körper = AsbAbschnitt.zerteil(fluss)
-        return kls(name, parameter, körper)
+        return kls(name, pnamen, pgrößen, körper)
 
     def zusammenstell(selbst, gk, gib):
         gib(ProzedurName(selbst.name) + ":")
-        lokale_variablen_menge = set(selbst.parameter)
+        lokale_variablen_menge = set(selbst.parameter_namen)
         selbst.körper.lokale(lokale_variablen_menge)
         lokale_variablen = len(lokale_variablen_menge)
 
@@ -554,8 +542,8 @@ class AsbProzedur:
 
         gib(f"enter {8*lokale_variablen}, 0")
 
-        register = REGISTER[:len(selbst.parameter)]
-        for name, quelle in zip(selbst.parameter, register):
+        register = REGISTER[:len(selbst.parameter_namen)]
+        for name, quelle in zip(selbst.parameter_namen, register):
             virtuelle_addresse = gk.variablen[name]
             gib(f"mov [rbp-{virtuelle_addresse}], {quelle}")
 
@@ -566,9 +554,7 @@ class AsbProzedur:
 
 @dk
 class GlobalerKontext:
-    konstantent : dict[str, int]
-    prozeduren  : list[str]
-    schemata    : list
+    wurzelknoten : Any
     variablen   : dict[str, int] = None
     zk          : dict[str, str] = feld(default_factory=lambda: {})
     __frisch_index : int = 0
@@ -577,10 +563,66 @@ class GlobalerKontext:
         selbst.__frisch_index += 1
         return f"__Frisch_{selbst.__frisch_index}"
 
-    def suche_schema_bei_name(selbst, name):
+    def suche_schema_beim_namen(selbst, name):
         for schema in selbst.schemata:
             if schema.name == name:
                 return schema
+
+    def suche_externe_beim_namen(selbst, name):
+        for extern in selbst.externe:
+            if extern.name == name:
+                return extern
+
+    def schlage_prozedur_nach(selbst, name):
+        print(name)
+        for intern in selbst.wurzelknoten.prozeduren:
+            if intern.name == name:
+                return False, intern
+
+        for extern in selbst.wurzelknoten.externe:
+            if extern.name == name:
+                return True, extern
+
+        fehler(f"Prozedur mit dem namen `{name}` wurde nicht gefunden.")
+
+
+@dk
+class AsbExtern:
+    name : str
+    parameter_namen : list[str]
+    parameter_größen : list[int]
+
+    außenname : str
+    buch      : str
+
+    @classmethod
+    def zerteil(kls, fluss):
+        fluss.erwarte("externe")
+        fluss.erwarte("prozedur")
+        name = fluss.nimm()
+        fluss.erwarte("(")
+
+        pnamen = [] 
+        pgrößen = []
+
+        while fluss.schau() != ")":
+            pname = fluss.nimm()
+            fluss.erwarte(":")
+            pgröße = int(fluss.nimm())
+            if fluss.schau() == ",": fluss.nimm()
+
+            pnamen.append(pname)
+            pgrößen.append(pgröße)
+
+        fluss.erwarte(")")
+        fluss.erwarte("heißt")
+        außenname = fluss.nimm().strip("»«")
+        fluss.erwarte("von")
+        buch = fluss.nimm().strip("»«")
+
+        return kls(name, pnamen, pgrößen, außenname, buch)
+
+
 
 @dk
 class AsbSchema:
@@ -616,9 +658,6 @@ class AsbSchema:
 
 
 
-
-
-
 bekannte_programm_pfad = set()
 
 @dk
@@ -626,6 +665,7 @@ class AsbProgramm:
     prozeduren  : list[AsbProzedur]
     konstantent : dict[str, int]
     schemata    : list
+    externe     : list
 
 
     @classmethod
@@ -638,6 +678,7 @@ class AsbProgramm:
         prozeduren  = []
         konstantent = {}
         schemata    = []
+        externe     = []
 
         while fluss.hat():
             match fluss.schau():
@@ -663,23 +704,26 @@ class AsbProgramm:
                     unterwurzel = kls.analysis(pfad)
 
                     prozeduren  +=     unterwurzel.prozeduren
+                    schemata    +=     unterwurzel.schemata
+                    externe     +=     unterwurzel.externe
                     konstantent.update(unterwurzel.konstantent)
 
                 case 'schema':
                     schemata.append(AsbSchema.zerteil(fluss))
 
+                case 'externe':
+                    externe.append(AsbExtern.zerteil(fluss))
+
                 case wort:
                     print(f"Unbekannes Hauptwort: `{wort}`")
                     sys.exit(1)
 
-        return kls(prozeduren, konstantent, schemata)
+        return kls(prozeduren, konstantent, schemata, externe)
 
     def zusammenstell(selbst, gib):
-        gk = GlobalerKontext(
-            selbst.konstantent, 
-            list(proz.name for proz in selbst.prozeduren),
-            selbst.schemata
-        )
+        gk = GlobalerKontext(selbst)
+        print(selbst)
+        print(gk)
         
         gib("format PE64")
         gib("entry start")
@@ -697,39 +741,43 @@ class AsbProgramm:
             daten = ','.join(str(ord(zeichen)) for zeichen in zk + '\0')
             gib(f"{name} db {daten}")
 
-        # windows. wir alles hassen es.
+
+        externe_bücher = {}
+        externe_proz_namen = {} 
+        externe_buch_namen = {} 
+
+        # sammle alle bücher, und erzeuge tabellen. geil.
+        for extern in gk.wurzelknoten.externe:
+            if extern.buch not in externe_bücher:
+                externe_bücher[extern.buch] = (
+                    gk.frisch(), #buchbeschriftung
+                    [], #prozeduren
+                )
+
+            _, prozen = externe_bücher[extern.buch]
+            prozen.append(extern)
+
+        # windows. wir alle hassen es.
         gib("section '.idata' import data readable writeable")
-        gib("   dd  0,0,0,RVA kernel_name,RVA kernel_table")
-        gib("   dd  0,0,0,RVA user_name  ,RVA user_table  ")
-        gib("   dd  0,0,0,0,0")
+        for name, buch in externe_bücher.items():
+            besch = gk.frisch()
+            externe_buch_namen[besch] = name
+            gib(f"dd  0,0,0,RVA {besch},RVA {buch[0]}")
+        gib("dd  0,0,0,0,0")
 
-        gib("kernel_table:")
-        gib("   Prozedur_SchließProzess      dq RVA _ExitProcess")
-        gib("   Prozedur_NimStdGriff         dq RVA _GetStdHandle")
-        gib("   Prozedur_SchreibDatei        dq RVA _WriteFile")
-        gib("   Prozedur_NimModulGriff       dq RVA _GetModuleHandleA")
-        gib("   Prozedur_NimProzessHaufen    dq RVA _GetProcessHeap")
-        gib("   Prozedur_HaufenZuweise       dq RVA _HeapAlloc")
-        gib("   Prozedur_HaufenAbweise       dq RVA _HeapFree")
-        gib("                                dq 0")
+        for besch, prozen in externe_bücher.values():
+            gib(f"{besch}:")
+            for proz in prozen:
+                besch = gk.frisch()
+                gib(f"   Prozedur_{proz.name} dq RVA {besch}")
+                externe_proz_namen[besch] = proz.außenname
+            gib("dq 0")
 
-        gib("user_table:")
-        gib("   Prozedur_LadeBildchen        dq RVA _LoadIconA")
-        gib("   Prozedur_LadeEingabemarke    dq RVA _LoadCursorA")
-        gib("                                dq 0")
-
-        gib("kernel_name db 'KERNEL32.DLL',0")
-        gib("user_name   db 'USER32.DLL',0")
-
-        gib("_ExitProcess       db 0,0,'ExitProcess',0")
-        gib("_GetStdHandle      db 0,0,'GetStdHandle',0")
-        gib("_WriteFile         db 0,0,'WriteFile',0")
-        gib("_GetModuleHandleA  db 0,0,'GetModuleHandleA',0")
-        gib("_GetProcessHeap    db 0,0,'GetProcessHeap',0")
-        gib("_HeapAlloc         db 0,0,'HeapAlloc',0")
-        gib("_HeapFree          db 0,0,'HeapFree',0")
-        gib("_LoadIconA         db 0,0,'LoadIconA',0")
-        gib("_LoadCursorA       db 0,0,'LoadCursorA',0")
+        # namen zeichenketten
+        for buch_besch, buch_name in externe_buch_namen.items():
+            gib(f"{buch_besch} db '{buch_name}',0")
+        for proz_besch, proz_name in externe_proz_namen.items():
+            gib(f"{proz_besch} db 0,0,'{proz_name}',0")
 
 
 
