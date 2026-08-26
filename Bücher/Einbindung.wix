@@ -1,19 +1,24 @@
 
 
-externe prozedur SchließProzess         heißt »ExitProcess« von »KERNEL32.DLL«
-externe prozedur NimStdGriff            heißt »GetStdHandle« von »KERNEL32.DLL«
-externe prozedur SchreibDatei           heißt »WriteFile« von »KERNEL32.DLL«
+externe prozedur SchließProzess         heißt »ExitProcess«      von »KERNEL32.DLL«
+externe prozedur NimStdGriff            heißt »GetStdHandle«     von »KERNEL32.DLL«
+externe prozedur SchreibDatei           heißt »WriteFile«        von »KERNEL32.DLL«
 externe prozedur NimModulGriff          heißt »GetModuleHandleA« von »KERNEL32.DLL«
-externe prozedur NimProzessHaufen       heißt »GetProcessHeap« von »KERNEL32.DLL«
-externe prozedur HaufenZuweise          heißt »HeapAlloc« von »KERNEL32.DLL«
-externe prozedur HaufenAbweise          heißt »HeapFree« von »KERNEL32.DLL«
+externe prozedur NimProzessHaufen       heißt »GetProcessHeap«   von »KERNEL32.DLL«
+externe prozedur HaufenZuweise          heißt »HeapAlloc«        von »KERNEL32.DLL«
+externe prozedur HaufenAbweise          heißt »HeapFree«         von »KERNEL32.DLL«
+externe prozedur NimLetzterFehler       heißt »GetLastError«     von »KERNEL32.DLL«
 
-externe prozedur LadeBildchen           heißt »LoadIconA« von »USER32.DLL«
-externe prozedur LadeEingabemarke       heißt »LoadCursorA« von »USER32.DLL«
+externe prozedur LadeBildchen           heißt »LoadIconA«        von »USER32.DLL«
+externe prozedur LadeEingabemarke       heißt »LoadCursorA«      von »USER32.DLL«
 externe prozedur RegistriereKlasse      heißt »RegisterClassExA« von »USER32.DLL«
-externe prozedur KreiereFenster         heißt »CreateWindowExA« von »USER32.DLL«
+externe prozedur KreiereFenster         heißt »CreateWindowExA«  von »USER32.DLL«
+externe prozedur ZeigeFenster           heißt »ShowWindow«       von »USER32.DLL«
+externe prozedur VorgabeFensterProz     heißt »DefWindowProcA«   von »USER32.DLL«
+externe prozedur NimNachricht           heißt »GetMessageA«      von »USER32.DLL«
 
 
-
+externe prozedur ÜbersetzteNachricht    heißt »TranslateMessage« von »USER32.DLL«
+externe prozedur AbfertigeNachricht     heißt »DispatchMessageA« von »USER32.DLL«
 
 

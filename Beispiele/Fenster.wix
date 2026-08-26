@@ -1,5 +1,6 @@
 
 schließ »Bücher/Einbindung.wix« ein
+schließ »Bücher/ZK.wix« ein
 
 schema FensterKlasse
 auf
@@ -17,16 +18,30 @@ auf
     BildchenKlein : 8,
 zu
 
-
-
-prozedur FensterProz(griff: 8, nachricht: 4, wort_param: 8, lang_param: 8)
+schema Nachricht
 auf
+    Griff : 8,
+    Inhalt : 4,
+    WortParam : 8,
+    LangParam : 8,
+    Zeit : 4,
+    X : 8,
+    Y : 8,
+    Privat : 4,
+zu
+
+
+
+prozedur FensterProz(griff, nachricht, wort_param, lang_param)
+auf
+    VorgabeFensterProz(griff, nachricht, wort_param, lang_param);
 zu
 
 
 
 prozedur Haupt()
 auf
+
     tu Instanz = NimModulGriff();
     tu HaufenGriff = NimProzessHaufen();
 
@@ -34,9 +49,10 @@ auf
 
     tu FenKls = HaufenZuweise(HaufenGriff, 0, FensterKlasse);
     tu bildchen = LadeBildchen(0, 32512);
+
     tu FenKls.FensterKlasse§Größe = FensterKlasse;
     tu FenKls.FensterKlasse§Stil  = 0;
-    tu FenKls.FensterKlasse§zFensterProz = 0;
+    tu FenKls.FensterKlasse§zFensterProz = FensterProz;
     tu FenKls.FensterKlasse§ClsExtra = 0;
     tu FenKls.FensterKlasse§WndExtra = 0;
     tu FenKls.FensterKlasse§Instanz = Instanz;
@@ -46,9 +62,8 @@ auf
     tu FenKls.FensterKlasse§zzMenüName = 0;
     tu FenKls.FensterKlasse§zzKlassenName = FensterKlassenName;
     tu FenKls.FensterKlasse§BildchenKlein = bildchen;
-    RegistriereKlasse(FenKls);
+    tu res = RegistriereKlasse(FenKls);
 
-    
     tu FensterGriff = KreiereFenster(
         0,
         FensterKlassenName,
@@ -58,6 +73,15 @@ auf
         0, 0, Instanz, 0
     );
         
+    ZeigeFenster(FensterGriff, 1);
+
+    tu nachricht = HaufenZuweise(HaufenGriff, 0, Nachricht);
+    solang NimNachricht(nachricht, 0, 0, 0) > 0
+    auf
+        ÜbersetzteNachricht(nachricht);
+        AbfertigeNachricht(nachricht);
+    zu
+
 
     SchließProzess(0);
 zu

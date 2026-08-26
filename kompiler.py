@@ -786,7 +786,7 @@ def Haupt():
 
     wurzel.zusammenstell(gib)
     ausgabe = "\n".join(zusammenbau)
-    #print(ausgabe)
+    print(ausgabe)
 
     hintergriff, hinterpfad = tempfile.mkstemp(suffix=".asm")
     try:
