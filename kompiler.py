@@ -137,7 +137,6 @@ class AsbAufruf:
         stapel_teil  = selbst.parameter[4:]
 
         dynamisch, prozedur = gk.schlage_prozedur_nach(selbst.name)
-        pgrößen = prozedur.parameter_größen
 
         # lade schnelle parameter in die übergaberegister
         register = REGISTER[:len(schnell_teil)]
@@ -149,22 +148,24 @@ class AsbAufruf:
 
         # versichere, dass der Stack aligned ist,
         # und dass die Schattenregion existiert.
+        stapelraum = 0x20 + 8 * len(selbst.parameter)
         gib("push rbp")
         gib("mov  r10, rsp") #r10 darf für NICHTS anderes benutzt werden!
         gib("and  rsp, -16")
-        gib("sub  rsp, 20h")
 
-        for index, rest in enumerate(stapel_teil):
-            pindex = index + 4
-            if pindex < len(pgrößen):
-                fehler("Prozeduraufruf hat mehr Parameter als Prozedursignatur.")
+        print(selbst.name, stapelraum) 
 
+        for rest in stapel_teil:
             rest.lade(gk, gib)
-            match pgrößen[pindex]:
-                case 1: gib("push al")
-                case 2: gib("push ax")
-                case 4: gib("push eax")
-                case 8: gib("push rax")
+            gib("push rax")
+        
+        gib("push 0")
+        gib("push 0")
+        gib("push 0")
+        gib("push 0")
+
+        if len(selbst.parameter) & 1:
+            gib("push 0")
 
         #base pointer wird verzögert gesetzt,
         # damit die stapel parameter errechnet werden können.
@@ -184,7 +185,7 @@ def fehler(msg):
     sys.exit(1)
 
 
-OPERATOREN = ['+', '-', '*', '/', '.', '<<', '>>', '&', '|', '^', '==', '!=', '>', '<']
+OPERATOREN = ['+', '-', '*', '/', '%', '.', '<<', '>>', '&', '|', '^', '==', '!=', '>', '<']
 
 @dk
 class AsbUnär:
@@ -213,12 +214,10 @@ class AsbUnär:
             case '-':
                 art = "minus"
                 inhalt = AsbUnär.zerteil(fluss)
-            case '*':
+
+            case g if g in 'bwdq':
                 art = "zeiger"
-                inhalt = AsbBinär.zerteil(fluss)
-            case '&':
-                art = "addresse"
-                inhalt = AsbBinär.zerteil(fluss)
+                inhalt = (g, AsbBinär.zerteil(fluss))
 
             case name if fluss.schau() == '(':
                 art = "aufruf"
@@ -260,8 +259,16 @@ class AsbUnär:
 
 
             case 'zeiger':
-                selbst.inhalt.lade(gk, gib)
-                gib("mov rax, [rax]")
+                größe, addr = selbst.inhalt
+                addr.lade(gk, gib)
+                gib("mov rbx, rax")
+                gib("xor rax, rax")
+                match größe:
+                    case 'b': gib("mov al,  [rbx]")
+                    case 'w': gib("mov ax,  [rbx]")
+                    case 'd': gib("mov eax, [rbx]")
+                    case 'q': gib("mov rax, [rbx]")
+
             case 'aufruf':
                 selbst.inhalt.zusammenstell(gk, gib)
             case 'zk':
@@ -278,10 +285,16 @@ class AsbUnär:
                 virtuelle_addresse = gk.variablen[selbst.inhalt]
                 gib(f"mov [rbp-{virtuelle_addresse}], rax")
             case 'zeiger':
+                größe, addr = selbst.inhalt
                 gib('push rax')
-                selbst.inhalt.lade(gk, gib)
+                addr.lade(gk, gib)
                 gib('pop rbx')
-                gib('mov [rax], rbx')
+
+                match größe:
+                    case 8: gib('mov [rax], rbx')
+                    case 4: gib('mov [rax], ebx')
+                    case 2: gib('mov [rax], bx')
+                    case 1: gib('mov [rax], bl')
 
 
 
@@ -317,6 +330,14 @@ class AsbBinär:
             case '+': gib("add rax, rbx")
             case '-': gib("sub rax, rbx")
             case '*': gib("mul rbx")
+            case '/':
+                gib('xor rdx, rdx')
+                gib('div rbx')
+            case '%':
+                gib('xor rdx, rdx')
+                gib('div rbx')
+                gib('mov rax, rdx')
+
             case '&': gib("and rax, rbx")
 
             case '!=':
@@ -506,8 +527,7 @@ class AsbAbschnitt:
 @dk
 class AsbProzedur:
     name : str
-    parameter_namen  : list[str]
-    parameter_größen : list[int]
+    parameter : list[str]
     körper : AsbAbschnitt
 
     @classmethod
@@ -516,26 +536,18 @@ class AsbProzedur:
         name = fluss.nimm()
         fluss.erwarte('(')
 
-        pnamen = [] 
-        pgrößen = []
-
+        parameter = [] 
         while fluss.schau() != ")":
-            pname = fluss.nimm()
-            fluss.erwarte(":")
-            pgröße = int(fluss.nimm())
+            parameter.append(fluss.nimm())
             if fluss.schau() == ",": fluss.nimm()
-
-            pnamen.append(pname)
-            pgrößen.append(pgröße)
-
 
         fluss.erwarte(')')
         körper = AsbAbschnitt.zerteil(fluss)
-        return kls(name, pnamen, pgrößen, körper)
+        return kls(name, parameter, körper)
 
     def zusammenstell(selbst, gk, gib):
         gib(ProzedurName(selbst.name) + ":")
-        lokale_variablen_menge = set(selbst.parameter_namen)
+        lokale_variablen_menge = set(selbst.parameter)
         selbst.körper.lokale(lokale_variablen_menge)
         lokale_variablen = len(lokale_variablen_menge)
 
@@ -543,8 +555,8 @@ class AsbProzedur:
 
         gib(f"enter {8*lokale_variablen}, 0")
 
-        register = REGISTER[:len(selbst.parameter_namen)]
-        for name, quelle in zip(selbst.parameter_namen, register):
+        register = REGISTER[:len(selbst.parameter)]
+        for name, quelle in zip(selbst.parameter, register):
             virtuelle_addresse = gk.variablen[name]
             gib(f"mov [rbp-{virtuelle_addresse}], {quelle}")
 
@@ -565,17 +577,11 @@ class GlobalerKontext:
         return f"__Frisch_{selbst.__frisch_index}"
 
     def suche_schema_beim_namen(selbst, name):
-        for schema in selbst.schemata:
+        for schema in selbst.wurzelknoten.schemata:
             if schema.name == name:
                 return schema
 
-    def suche_externe_beim_namen(selbst, name):
-        for extern in selbst.externe:
-            if extern.name == name:
-                return extern
-
     def schlage_prozedur_nach(selbst, name):
-        print(name)
         for intern in selbst.wurzelknoten.prozeduren:
             if intern.name == name:
                 return False, intern
@@ -590,9 +596,6 @@ class GlobalerKontext:
 @dk
 class AsbExtern:
     name : str
-    parameter_namen : list[str]
-    parameter_größen : list[int]
-
     außenname : str
     buch      : str
 
@@ -601,27 +604,12 @@ class AsbExtern:
         fluss.erwarte("externe")
         fluss.erwarte("prozedur")
         name = fluss.nimm()
-        fluss.erwarte("(")
-
-        pnamen = [] 
-        pgrößen = []
-
-        while fluss.schau() != ")":
-            pname = fluss.nimm()
-            fluss.erwarte(":")
-            pgröße = int(fluss.nimm())
-            if fluss.schau() == ",": fluss.nimm()
-
-            pnamen.append(pname)
-            pgrößen.append(pgröße)
-
-        fluss.erwarte(")")
         fluss.erwarte("heißt")
         außenname = fluss.nimm().strip("»«")
         fluss.erwarte("von")
         buch = fluss.nimm().strip("»«")
 
-        return kls(name, pnamen, pgrößen, außenname, buch)
+        return kls(name, außenname, buch)
 
 
 
@@ -723,8 +711,6 @@ class AsbProgramm:
 
     def zusammenstell(selbst, gib):
         gk = GlobalerKontext(selbst)
-        print(selbst)
-        print(gk)
         
         gib("format PE64")
         gib("entry start")
@@ -792,7 +778,7 @@ def Haupt():
 
     wurzel.zusammenstell(gib)
     ausgabe = "\n".join(zusammenbau)
-    print(ausgabe)
+    #print(ausgabe)
 
     hintergriff, hinterpfad = tempfile.mkstemp(suffix=".asm")
     try:
