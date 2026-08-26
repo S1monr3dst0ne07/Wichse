@@ -144,7 +144,7 @@ class AsbAufruf:
         for ausdruck in schnell_teil:
             ausdruck.lade(gk, gib)
             gib("push rax")
-        for ziel in register:
+        for ziel in register[::-1]:
             gib(f"pop {ziel}")
 
         # versichere, dass der Stack aligned ist,
@@ -170,8 +170,9 @@ class AsbAufruf:
         # damit die stapel parameter errechnet werden können.
         gib("mov rbp, r10") 
         
-        if dynamisch: gib(f"call [{ProzedurName(selbst.name)}]")
-        else:         gib(f"call  {ProzedurName(selbst.name)} ")
+        besch = ProzedurName(selbst.name)
+        if dynamisch: gib(f"call [{besch}]")
+        else:         gib(f"call  {besch} ")
 
         gib("mov  rsp, rbp")
         gib("pop  rbp")

@@ -1,7 +1,7 @@
 
 
 externe prozedur SchließProzess(status: 4) heißt »ExitProcess« von »KERNEL32.DLL«
-externe prozedur NimStdGriff(gerät: 4)     heißt »GetStdHandel« von »KERNEL32.DLL«
+externe prozedur NimStdGriff(gerät: 4)     heißt »GetStdHandle« von »KERNEL32.DLL«
 externe prozedur SchreibDatei(griff: 8, puffer: 8, länge: 4, geschrieben: 8) heißt »WriteFile« von »KERNEL32.DLL«
 externe prozedur NimModulGriff(modul_name: 8) heißt »GetModuleHandleA« von »KERNEL32.DLL«
 externe prozedur NimProzessHaufen() heißt »GetProcessHeap« von »KERNEL32.DLL«
