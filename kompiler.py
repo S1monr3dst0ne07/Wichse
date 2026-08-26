@@ -291,10 +291,10 @@ class AsbUnär:
                 gib('pop rbx')
 
                 match größe:
-                    case 8: gib('mov [rax], rbx')
-                    case 4: gib('mov [rax], ebx')
-                    case 2: gib('mov [rax], bx')
-                    case 1: gib('mov [rax], bl')
+                    case 'b': gib('mov [rax], bl')
+                    case 'w': gib('mov [rax], bx')
+                    case 'd': gib('mov [rax], ebx')
+                    case 'q': gib('mov [rax], rbx')
 
 
 
