@@ -148,24 +148,20 @@ class AsbAufruf:
 
         # versichere, dass der Stack aligned ist,
         # und dass die Schattenregion existiert.
-        stapelraum = 0x20 + 8 * len(selbst.parameter)
         gib("push rbp")
         gib("mov  r10, rsp") #r10 darf für NICHTS anderes benutzt werden!
         gib("and  rsp, -16")
 
-        print(selbst.name, stapelraum) 
+        stapelraum_nackt = 0x20 + 8 * len(stapel_teil)
+        stapelraum_angeglichen = (stapelraum_nackt + 15) & ~15
+        gib(f"sub rsp, {stapelraum_angeglichen}")
 
-        for rest in stapel_teil:
+        print(selbst.name, stapelraum_angeglichen) 
+
+        for index, rest in enumerate(stapel_teil):
             rest.lade(gk, gib)
-            gib("push rax")
-        
-        gib("push 0")
-        gib("push 0")
-        gib("push 0")
-        gib("push 0")
-
-        if len(selbst.parameter) & 1:
-            gib("push 0")
+            addresse = 32 + index * 8
+            gib(f"mov [rsp+{addresse}], rax")
 
         #base pointer wird verzögert gesetzt,
         # damit die stapel parameter errechnet werden können.
@@ -250,9 +246,14 @@ class AsbUnär:
                     gk.wurzelknoten.konstantent[selbst.inhalt].lade(gk, gib)
                     return
 
-                resultat = len(gk.suche_schema_beim_namen(selbst.inhalt).felder)
+                if selbst.inhalt in gk.proz():
+                    gib(f"mov rax, {ProzedurName(selbst.inhalt)}")
+                    return
+
+                resultat = gk.suche_schema_beim_namen(selbst.inhalt)
                 if resultat is not None:
-                    gib(f"mov rax, {resultat}")
+                    länge = sum(resultat.größen)
+                    gib(f"mov rax, {länge}")
                     return
 
                 fehler(f"Versuchte das Symbol `{selbst.inhalt}` zu laden, aber dieses wurde nicht definiert.")
@@ -337,13 +338,17 @@ class AsbBinär:
                 gib('xor rdx, rdx')
                 gib('div rbx')
                 gib('mov rax, rdx')
+            case '==' | '!=' | '<' | '>':
+                gib('cmp rax, rbx')
+                match selbst.operator:
+                    case '==': gib('sete cl')
+                    case '!=': gib('setne cl')
+                    case '>':  gib("seta cl")
+                    case '<':  gib("setb cl")
+                gib('movzx rax, cl')
+
 
             case '&': gib("and rax, rbx")
-
-            case '!=':
-                gib("cmp rax, rbx")
-                gib("setne cl")
-                gib("movzx rax, cl")
 
             case op:
                 print(f"IMPL. OP. {op}")
@@ -575,6 +580,9 @@ class GlobalerKontext:
     def frisch(selbst):
         selbst.__frisch_index += 1
         return f"__Frisch_{selbst.__frisch_index}"
+
+    def proz(selbst):
+        return [x.name for x in selbst.wurzelknoten.prozeduren]
 
     def suche_schema_beim_namen(selbst, name):
         for schema in selbst.wurzelknoten.schemata:
