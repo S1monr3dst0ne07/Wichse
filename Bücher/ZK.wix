@@ -1,7 +1,7 @@
 
 schließ »Bücher/Einbindung.wix« ein
 
-prozedur ZK§Länge(zk: 8)
+prozedur ZK§Länge(zk)
 auf
     tu länge = 0;
     solang (*(zk+länge)) & 255
@@ -12,7 +12,7 @@ auf
     rück länge;
 zu
 
-prozedur ZK§Druck(nachricht: 8)
+prozedur ZK§Druck(nachricht)
 auf
     tu länge = ZK§Länge(nachricht);
     tu erfolg = SchreibDatei(

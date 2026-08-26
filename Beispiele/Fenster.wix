@@ -1,4 +1,5 @@
 
+schließ »Bücher/Einbindung.wix« ein
 
 schema FensterKlasse
 auf
@@ -18,19 +19,10 @@ zu
 
 
 
-prozedur FensterProz(griff, nachricht, wort_param, lang_param)
+prozedur FensterProz(griff: 8, nachricht: 4, wort_param: 8, lang_param: 8)
 auf
 zu
 
-
-
-externe prozedur NimModulGriff()
-externe prozedur NimProzessHaufen()
-externe prozedur LadeBildchen(a: 4, b: 4)
-externe prozedur LadeEingabemarke(a: 4, b: 4)
-externe prozedur RegistriereKlasse(klasse: 8)
-externe prozedur KreiereFenster()
-externe prozedur SchließProzess(status: 8)
 
 
 prozedur Haupt()
