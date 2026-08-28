@@ -23,3 +23,10 @@ externe prozedur AbfertigeNachricht     heißt »DispatchMessageA« von »USER32
 
 externe prozedur NachZerstör            heißt »PostQuitMessage«  von »USER32.DLL«
 
+
+
+externe prozedur ÖffneDatei             heißt »OpenFile«         von »KERNEL32.DLL«
+externe prozedur NimDateiGröße          heißt »GetFileSize«      von »KERNEL32.DLL«
+externe prozedur LeseDatei              heißt »ReadFile«         von »KERNEL32.DLL«
+
+externe prozedur SchickNachricht        heißt »SendMessageW«     von »USER32.DLL«

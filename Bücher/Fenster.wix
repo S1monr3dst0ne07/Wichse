@@ -28,6 +28,16 @@ auf
 zu
 
 
+schema Fenster§DateiBehälter 
+auf
+    Bytes : 1,
+    AufPlatte : 1,
+    FehlerCode : 2,
+    ReserviertA : 2,
+    ReserviertB : 2,
+zu
+
+
 
 konstant Fenster§ART§ÜBERSCHRIFT = 12582912;
 konstant Fenster§ART§MENÜ = 524288;
@@ -52,5 +62,11 @@ konstant Fenster§NACHRICHT§BEFEHL   = 273;
 
 konstant Fenster§ART§VSCROLL = 2097152;
 konstant Fenster§ART§HSCROLL = 1048576;
+
+
+konstant Fenster§DATEI§ERZEUGE = 4096;
+konstant Fenster§DATEI§LESE    = 0;
+
+konstant Fenster§LISTE§LEER    = 395;
 
 

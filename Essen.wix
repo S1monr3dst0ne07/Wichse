@@ -15,6 +15,8 @@ auf
     FenGriffEss : 8,
     FenGriffWeg : 8,
     FenGriffListe : 8,
+
+    Datenbank : 8,
 zu
 
 global kontext
@@ -26,6 +28,8 @@ auf
     tu kontext = HaufenZuweise(HaufenGriff, Haufen§NULL_SETZ, Kontext);
     tu kontext.Kontext§Instanz = Instanz;
     tu kontext.Kontext§HaufenGriff = HaufenGriff;
+
+    LadeDatenbank();
 zu
 
 konstant ID_LISTE       = 1001;
@@ -33,6 +37,128 @@ konstant ID_HIN         = 1002;
 konstant ID_ESS         = 1003;
 konstant ID_WEG         = 1004;
 konstant ID_EINGABE     = 1005;
+
+
+schema Datenpunkt
+auf
+    Essen : 8,
+    Jahr  : 4,
+    Monat : 4,
+    Tag   : 4,
+    NächsterPunkt : 8,
+zu
+
+prozedur MachDatenpunkt()
+auf
+    tu dp = HaufenZuweise(kontext.Kontext§HaufenGriff, 0, Datenpunkt);
+    tu dp.Datenpunkt§Essen = HaufenZuweise(kontext.Kontext§HaufenGriff, 0, 4096);
+    tu dp.Datenpunkt§Jahr          = 0;
+    tu dp.Datenpunkt§Monat         = 0;
+    tu dp.Datenpunkt§Tag           = 0;
+    tu dp.Datenpunkt§NächsterPunkt = 0;
+    rück dp;
+zu
+
+
+konstant DBZ_NAME = 0;
+konstant DBZ_JAHR = 1;
+konstant DBZ_MONAT = 2;
+konstant DBZ_TAG = 3;
+
+prozedur LadeDatenbank()
+auf
+    tu müll = HaufenZuweise(kontext.Kontext§HaufenGriff, 0, Fenster§DateiBehälter+128);
+    tu griff = ÖffneDatei(»essen-datenbank.txt«, müll, Fenster§DATEI§LESE);
+
+    falls griff == 4294967295
+    auf
+        ZK§Druck(»Datei »essen-datenbank.txt« nicht gefunden.\z«);
+        SchließProzess(1);
+    zu
+
+    tu größe = NimDateiGröße(griff, 0); 
+    tu datei = HaufenZuweise(kontext.Kontext§HaufenGriff, Haufen§NULL_SETZ, größe+1);
+    LeseDatei(griff, datei, größe, 0, 0);
+
+    tu dp = MachDatenpunkt();
+    tu namen_index = 0;
+    
+    tu index = 0;
+    tu zustand = DBZ_NAME;
+    solang index < größe
+    auf
+        tu zeichen = b(index+datei);
+
+        tu normal = 1;
+        falls zeichen == ›,‹
+        auf 
+            tu zustand = zustand + 1; 
+            tu normal = 0;
+        zu
+
+        falls (zeichen == ›\z‹) & (zustand == DBZ_TAG)
+        auf
+            tu neu_dp = MachDatenpunkt();
+
+            tu b((dp.Datenpunkt§Essen)+namen_index) = ›\0‹;
+            tu neu_dp.Datenpunkt§NächsterPunkt = dp;
+
+            tu dp = neu_dp;
+            tu namen_index = 0;
+            tu zustand = 0;
+        zu
+
+        falls normal
+        auf
+            falls zustand == DBZ_NAME
+            auf
+                tu b((dp.Datenpunkt§Essen)+namen_index) = zeichen;
+                tu namen_index = namen_index + 1;
+            zu
+
+            falls zustand != DBZ_NAME
+            auf
+                tu x = 0;
+                falls zustand == DBZ_JAHR  auf tu x = dp.Datenpunkt§Jahr;  zu
+                falls zustand == DBZ_MONAT auf tu x = dp.Datenpunkt§Monat; zu
+                falls zustand == DBZ_TAG   auf tu x = dp.Datenpunkt§Tag;   zu
+
+                tu x = (x * 10) + (zeichen - ›0‹);
+
+                falls zustand == DBZ_JAHR  auf tu dp.Datenpunkt§Jahr  = x; zu
+                falls zustand == DBZ_MONAT auf tu dp.Datenpunkt§Monat = x; zu
+                falls zustand == DBZ_TAG   auf tu dp.Datenpunkt§Tag   = x; zu
+            zu
+        zu
+
+        tu index = index + 1;
+    zu
+
+    tu kontext.Kontext§Datenbank = dp.Datenpunkt§NächsterPunkt;
+zu
+
+
+
+prozedur ErneuerList()
+auf
+    SchickNachricht(
+        kontext.Kontext§FenGriffListe,
+        Fenster§LISTE§LEER,
+        0, 0
+    );
+
+    tu zeile = HaufenZuweise(kontext.Kontext§HaufenGriff, 0, 4096);
+    tu dp = kontext.Kontext§Datenbank;
+
+    solang dp
+    auf
+        ZK§Druck(dp.Datenpunkt§Essen); aus(0);
+
+        tu dp = dp.Datenpunkt§NächsterPunkt;
+    zu
+    
+zu
+
 
 
 prozedur Erzeuge(griff)
@@ -77,7 +203,7 @@ auf
         »BUTTON«,
         »Wegmachen«,
         Fenster§ART§KIND | Fenster§ART§SICHTBAR,
-        660, 10, 90, 28,
+        660, 10, 95, 28,
         griff,
         ID_WEG,
         0,
@@ -92,12 +218,15 @@ auf
         Fenster§ART§SICHTBAR |
         Fenster§ART§VSCROLL |
         Fenster§ART§HSCROLL,
-        10, 50, 740, 400,
+        10, 50, 745, 400,
         griff,
         ID_LISTE,
         0,
         0
     );
+
+
+    ErneuerList();
 zu
 
 
@@ -117,8 +246,7 @@ prozedur Haupt()
 auf
     MachKontext();
 
-    tu test = kontext.Kontext§HaufenGriff;
-    tu FenKls = HaufenZuweise(test, Haufen§NULL_SETZ, Fenster§Klasse);
+    tu FenKls = HaufenZuweise(kontext.Kontext§HaufenGriff, Haufen§NULL_SETZ, Fenster§Klasse);
     tu FenKls.Fenster§Klasse§Größe = Fenster§Klasse;
     tu FenKls.Fenster§Klasse§zFensterProz = FenProz;
     tu FenKls.Fenster§Klasse§zzKlassenName = »EssenHelfer«;
@@ -135,7 +263,7 @@ auf
         Fenster§ART§ÜBERSCHRIFT | Fenster§ART§MENÜ,
         Fenster§KF§NIM_NORMAL,
         Fenster§KF§NIM_NORMAL,
-        765, 480,
+        770, 480,
         0, 0, kontext.Kontext§Instanz, 0
     );
 
