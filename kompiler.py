@@ -335,6 +335,8 @@ class AsbBinär:
             match größe:
                 case 8: gib("mov rax, [rax]")
                 case 4: gib("mov eax, [rax]")
+                case 2: gib("mov ax,  [rax]")
+                case 1: gib("mov al,  [rax]")
 
                 case x:
                     fehler(f"Felder der Größe {x} bytes nicht unterstützt.")
@@ -384,6 +386,8 @@ class AsbBinär:
 
         schemaname, schemafeld = schemabezeichnung.rsplit("§", 1)
         schema = gk.suche_schema_beim_namen(schemaname)
+        if schema is None:
+            fehler(f"Der Schemabezeichner `{schemaname}` ist nicht present.")
         if schemafeld not in schema.felder:
             fehler(f"Das Schemafeld `{schemafeld}` ist nicht present in `{schemaname}`")
         index = schema.felder.index(schemafeld)
@@ -404,6 +408,8 @@ class AsbBinär:
                 match größe:
                     case 8: gib("mov [rax], rbx")
                     case 4: gib("mov [rax], ebx")
+                    case 2: gib("mov [rax], ax")
+                    case 1: gib("mov [rax], al")
 
                     case x:
                         fehler(f"Felder der Größe {x} bytes nicht unterstützt.")
