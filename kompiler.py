@@ -249,7 +249,9 @@ class AsbUnär:
                 gk.listen[besch] = len(selbst.inhalt)
                 for index, element in enumerate(selbst.inhalt):
                     element.lade(gk, gib) 
-                    gib(f"mov [{besch}+{index}], rax")
+                    gib(f"mov [{besch}+{index*8}], rax")
+
+                gib(f"mov rax, {besch}")
 
             case 'variable':
                 if selbst.inhalt in globale:
