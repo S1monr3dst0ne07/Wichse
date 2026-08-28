@@ -156,8 +156,6 @@ class AsbAufruf:
         stapelraum_angeglichen = (stapelraum_nackt + 15) & ~15
         gib(f"sub rsp, {stapelraum_angeglichen}")
 
-        print(selbst.name, stapelraum_angeglichen) 
-
         for index, rest in enumerate(stapel_teil):
             rest.lade(gk, gib)
             addresse = 32 + index * 8
@@ -239,7 +237,7 @@ class AsbUnär:
                 gib("neg rax")
             case 'variable':
                 if selbst.inhalt in globale:
-                    gib(f"mov rax, Global_{selbst.inhalt}")
+                    gib(f"mov rax, [Global_{selbst.inhalt}]")
                     return
                 if selbst.inhalt in gk.variablen:
                     virtuelle_addresse = gk.variablen[selbst.inhalt]
@@ -287,7 +285,7 @@ class AsbUnär:
             case 'minus':  fehler("Versuchte einen Minusausdruck zu überschreiben.")
             case 'variable':
                 if selbst.inhalt in globale:
-                    gib(f"mov Global_{selbst.inhalt}, rax")
+                    gib(f"mov [Global_{selbst.inhalt}], rax")
                     return
 
                 virtuelle_addresse = gk.variablen[selbst.inhalt]
@@ -334,7 +332,6 @@ class AsbBinär:
 
             selbst.links.lade(gk, gib)
             gib(f"add rax, {verschiebung}")
-            gib("mov rax, [rax]")
             match größe:
                 case 8: gib("mov rax, [rax]")
                 case 4: gib("mov eax, [rax]")
@@ -779,7 +776,7 @@ class AsbProgramm:
             daten = ','.join(str(ord(zeichen)) for zeichen in zk + '\0')
             gib(f"{name} db {daten}")
         for name in globale:
-            gib(f"{name} dq 0")
+            gib(f"Global_{name} dq 0")
 
 
         externe_bücher = {}
