@@ -147,13 +147,33 @@ auf
         0, 0
     );
 
-    tu zeile = HaufenZuweise(kontext.Kontext§HaufenGriff, 0, 4096);
+    tu zeile = HaufenZuweise(kontext.Kontext§HaufenGriff, Haufen§NULL_SETZ, 4096);
+    tu reihe = 0;
     tu dp = kontext.Kontext§Datenbank;
 
     solang dp
     auf
-        ZK§Druck(dp.Datenpunkt§Essen); aus(0);
+        ZK§Formatier(zeile, »%d-%d-%d   %s\z«, [
+            dp.Datenpunkt§Jahr,
+            dp.Datenpunkt§Monat,
+            dp.Datenpunkt§Tag,
+            dp.Datenpunkt§Essen,
+        ]);
 
+
+        tu index = SchickNachricht(
+            kontext.Kontext§FenGriffListe,
+            Fenster§LISTE§HINZU_ZK,
+            0, zeile
+        );
+
+        SchickNachricht(
+            kontext.Kontext§FenGriffListe,
+            Fenster§LISTE§SETZ_DATEN,
+            index, reihe
+        );
+
+        tu reihe = reihe + 1;
         tu dp = dp.Datenpunkt§NächsterPunkt;
     zu
     

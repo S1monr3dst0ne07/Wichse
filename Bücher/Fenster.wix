@@ -67,6 +67,8 @@ konstant Fenster§ART§HSCROLL = 1048576;
 konstant Fenster§DATEI§ERZEUGE = 4096;
 konstant Fenster§DATEI§LESE    = 0;
 
-konstant Fenster§LISTE§LEER    = 395;
+konstant Fenster§LISTE§LEER        = 395;
+konstant Fenster§LISTE§HINZU_ZK    = 384;
+konstant Fenster§LISTE§SETZ_DATEN  = 410;
 
 

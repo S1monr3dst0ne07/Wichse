@@ -54,8 +54,82 @@ auf
 zu
 
 
+prozedur ZK§VonZahl(zahl)
+auf
+    tu puffer = HaufenZuweise(NimProzessHaufen(), 0, 256);
+    tu index = 255;
+
+    tu b(puffer+index) = ›\0‹;
+    
+    solang zahl
+    auf
+        tu index = index - 1;
+        tu b(puffer+index) = (zahl % 10) + ›0‹;
+        tu zahl = zahl / 10;
+    zu
+
+    rück puffer+index;
+zu
+
+
+prozedur ZK§Copier(ziel, quelle)
+auf
+    tu start = quelle;
+
+    solang b(quelle)
+    auf
+        tu b(ziel) = b(quelle);
+        tu ziel   = ziel   + 1;
+        tu quelle = quelle + 1;
+    zu
+
+    rück quelle - start;
+zu
 
 
 
+prozedur ZK§Formatier(puffer, muster, parameter)
+auf
+    tu puffer_index = 0;
+    tu muster_index = 0;
+
+    solang b(muster_index+muster)
+    auf
+        tu zeichen = b(muster_index+muster);
+
+        falls zeichen != ›%‹
+        auf
+            tu b(puffer+puffer_index) = zeichen;
+            tu puffer_index = puffer_index + 1;
+        zu
+
+        falls zeichen == ›%‹
+        auf
+            tu muster_index = muster_index + 1;
+            tu platzhalter = b(muster+muster_index);
+
+            falls platzhalter == ›d‹
+            auf
+                tu number = ZK§VonZahl(q(parameter));
+                tu puffer_index = puffer_index + 
+                    ZK§Copier(puffer+puffer_index, number);
+            zu
+
+            falls platzhalter == ›s‹
+            auf
+                tu zk = q(parameter);
+                tu puffer_index = puffer_index + 
+                    ZK§Copier(puffer+puffer_index, zk);
+            zu
+
+            tu parameter = parameter + 8; 
+        zu
+
+        
+        tu muster_index = muster_index + 1;
+    zu
+
+    tu b(puffer+puffer_index) = ›\0‹;
+zu
 
 

@@ -29,4 +29,4 @@ externe prozedur ÖffneDatei             heißt »OpenFile«         von »KERNE
 externe prozedur NimDateiGröße          heißt »GetFileSize«      von »KERNEL32.DLL«
 externe prozedur LeseDatei              heißt »ReadFile«         von »KERNEL32.DLL«
 
-externe prozedur SchickNachricht        heißt »SendMessageW«     von »USER32.DLL«
+externe prozedur SchickNachricht        heißt »SendMessageA«     von »USER32.DLL«
