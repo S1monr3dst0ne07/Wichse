@@ -21,4 +21,5 @@ externe prozedur NimNachricht           heißt »GetMessageA«      von »USER32
 externe prozedur ÜbersetzteNachricht    heißt »TranslateMessage« von »USER32.DLL«
 externe prozedur AbfertigeNachricht     heißt »DispatchMessageA« von »USER32.DLL«
 
+externe prozedur NachZerstör            heißt »PostQuitMessage«  von »USER32.DLL«
 

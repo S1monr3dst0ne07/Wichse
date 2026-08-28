@@ -1,0 +1,152 @@
+
+
+schließ »Bücher/Einbindung.wix« ein
+schließ »Bücher/ZK.wix« ein
+schließ »Bücher/Fenster.wix« ein
+schließ »Bücher/Haufen.wix« ein
+
+schema Kontext
+auf
+    Instanz : 8,
+    HaufenGriff : 8,
+
+    FenGriffEingabe : 8,
+    FenGriffHin : 8,
+    FenGriffEss : 8,
+    FenGriffWeg : 8,
+    FenGriffListe : 8,
+zu
+
+global kontext
+prozedur MachKontext()
+auf
+    tu Instanz = NimModulGriff();
+    tu HaufenGriff = NimProzessHaufen();
+
+    tu kontext = HaufenZuweise(HaufenGriff, Haufen§NULL_SETZ, Kontext);
+    tu kontext.Kontext§Instanz = Instanz;
+    tu kontext.Kontext§HaufenGriff = HaufenGriff;
+zu
+
+konstant ID_LISTE       = 1001;
+konstant ID_HIN         = 1002;
+konstant ID_ESS         = 1003;
+konstant ID_WEG         = 1004;
+konstant ID_EINGABE     = 1005;
+
+
+prozedur Erzeuge(griff)
+auf
+    tu kontext.Kontext§FenGriffEingabe = KreiereFenster(
+        Fenster§ART§GESUNKENE_ECKE 
+        »EDIT«,
+        »«,
+        Fenster§ART§KIND | Fenster§ART§SICHTBAR,
+        10, 10, 400, 28,
+        griff,
+        ID_EINGABE,
+        0, 0
+    );
+
+    tu kontext.Kontext§FenGriffHin = KreiereFenster(
+        0,
+        »BUTTON«,
+        »Hinzufügen«,
+        Fenster§ART§KIND | Fenster§ART§SICHTBAR,
+        420, 10, 100, 28,
+        griff,
+        ID_HIN,
+        0,
+        0
+    );
+
+    tu kontext.Kontext§FenGriffEss = KreiereFenster(
+        0,
+        »BUTTON«,
+        »Heute Gegessen«,
+        Fenster§ART§KIND | Fenster§ART§SICHTBAR,
+        530, 10, 120, 28,
+        griff,
+        ID_ESS,
+        0,
+        0
+    );
+
+    tu kontext.Kontext§FenGriffWeg = KreiereFenster(
+        0,
+        »BUTTON«,
+        »Wegmachen«,
+        Fenster§ART§KIND | Fenster§ART§SICHTBAR,
+        660, 10, 90, 28,
+        griff,
+        ID_WEG,
+        0,
+        0
+    );
+
+    tu kontext.Kontext§FenGriffListe = KreiereFenster(
+        Fenster§ART§GESUNKENE_ECKE,
+        »LISTBOX«,
+        »«,
+        Fenster§ART§KIND | 
+        Fenster§ART§SICHTBAR |
+        Fenster§ART§VSCROLL |
+        Fenster§ART§HSCROLL,
+        10, 50, 740, 400,
+        griff,
+        ID_LISTE,
+        0,
+        0
+    );
+zu
+
+
+prozedur FenProz(griff, nachricht, wort_param, lang_param)
+auf
+    falls nachricht == Fenster§NACHRICHT§ERZEUGE
+    auf Erzeuge(griff); rück 0; zu
+
+    falls nachricht == Fenster§NACHRICHT§ZERSTÖR
+    auf NachZerstör(0); rück 0; zu
+
+    VorgabeFensterProz(griff, nachricht, wort_param, lang_param);
+zu
+
+
+prozedur Haupt()
+auf
+    MachKontext();
+
+    tu test = kontext.Kontext§HaufenGriff;
+    tu FenKls = HaufenZuweise(test, Haufen§NULL_SETZ, Fenster§Klasse);
+    tu FenKls.Fenster§Klasse§Größe = Fenster§Klasse;
+    tu FenKls.Fenster§Klasse§zFensterProz = FenProz;
+    tu FenKls.Fenster§Klasse§zzKlassenName = »EssenHelfer«;
+    tu FenKls.Fenster§Klasse§Eingabemarke = LadeEingabemarke(0, Fenster§ID§ZEIGER);
+    tu FenKls.Fenster§Klasse§Hintergrund = 6;
+
+    tu a = RegistriereKlasse(FenKls);
+    falls a == 0 auf SchließProzess(1); zu
+
+    tu FensterGriff = KreiereFenster(
+        0,
+        »EssenHelfer«,
+        »Essen Helfer«,
+        Fenster§ART§ÜBERSCHRIFT | Fenster§ART§MENÜ,
+        Fenster§KF§NIM_NORMAL,
+        Fenster§KF§NIM_NORMAL,
+        765, 480,
+        0, 0, kontext.Kontext§Instanz, 0
+    );
+
+    ZeigeFenster(FensterGriff, 1);
+
+    tu nachricht = HaufenZuweise(kontext.Kontext§HaufenGriff, 0, Fenster§Nachricht);
+    solang NimNachricht(nachricht, 0, 0, 0) > 0
+    auf
+        ÜbersetzteNachricht(nachricht);
+        AbfertigeNachricht(nachricht);
+    zu
+
+    SchließProzess(0);
+zu

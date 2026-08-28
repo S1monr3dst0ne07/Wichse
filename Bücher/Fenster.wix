@@ -1,0 +1,56 @@
+
+schema Fenster§Klasse
+auf
+    Größe : 4,
+    Stil  : 4,
+    zFensterProz : 8,
+    ClsExtra : 4,
+    WndExtra : 4,
+    Instanz : 8,
+    Bildchen : 8,
+    Eingabemarke : 8
+    Hintergrund : 8,
+    zzMenüName : 8,
+    zzKlassenName : 8,
+    BildchenKlein : 8,
+zu
+
+schema Fenster§Nachricht
+auf
+    Griff : 8,
+    Inhalt : 4,
+    WortParam : 8,
+    LangParam : 8,
+    Zeit : 4,
+    X : 8,
+    Y : 8,
+    Privat : 4,
+zu
+
+
+
+konstant Fenster§ART§ÜBERSCHRIFT = 12582912;
+konstant Fenster§ART§MENÜ = 524288;
+
+konstant Fenster§ART§GESUNKENE_ECKE = 512;
+konstant Fenster§ART§KIND     = 1073741824;
+konstant Fenster§ART§SICHTBAR =  268435456;
+
+
+konstant Fenster§ID§ZEIGER = 32512;
+
+
+konstant Fenster§KF§NIM_NORMAL = -2147483648;
+
+
+konstant Fenster§NACHRICHT§ERZEUGE  = 1;
+konstant Fenster§NACHRICHT§ZERSTÖR  = 2;
+konstant Fenster§NACHRICHT§SKALIER  = 5;
+konstant Fenster§NACHRICHT§SETZFONT = 48;
+konstant Fenster§NACHRICHT§BEFEHL   = 273;
+
+
+konstant Fenster§ART§VSCROLL = 2097152;
+konstant Fenster§ART§HSCROLL = 1048576;
+
+

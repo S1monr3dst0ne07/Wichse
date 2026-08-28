@@ -36,6 +36,12 @@ auf
     tu i = i - 1;
     tu b(i+puffer) = ›\z‹;
 
+    falls zahl == 0 
+    auf
+        tu i = i - 1;
+        tu b(i+puffer) = ›0‹;
+    zu
+
     solang zahl
     auf
         tu i = i - 1;
