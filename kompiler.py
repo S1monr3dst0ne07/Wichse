@@ -238,6 +238,9 @@ class AsbUnär:
                 selbst.inhalt.lade(gk, gib)
                 gib("neg rax")
             case 'variable':
+                if selbst.inhalt in globale:
+                    gib(f"mov rax, Global_{selbst.inhalt}")
+                    return
                 if selbst.inhalt in gk.variablen:
                     virtuelle_addresse = gk.variablen[selbst.inhalt]
                     gib(f"mov rax, [rbp-{virtuelle_addresse}]")
@@ -283,6 +286,10 @@ class AsbUnär:
             case 'zeichen':fehler("Versuchte eine Zeichenkonstante zu überschreiben.")
             case 'minus':  fehler("Versuchte einen Minusausdruck zu überschreiben.")
             case 'variable':
+                if selbst.inhalt in globale:
+                    gib(f"mov Global_{selbst.inhalt}, rax")
+                    return
+
                 virtuelle_addresse = gk.variablen[selbst.inhalt]
                 gib(f"mov [rbp-{virtuelle_addresse}], rax")
             case 'zeiger':
@@ -322,6 +329,21 @@ class AsbBinär:
         pass
 
     def lade(selbst, gk, gib):
+        if selbst.operator == '.':
+            größe, verschiebung = selbst.schema_rechne_größe_und_verschiebung(gk)
+
+            selbst.links.lade(gk, gib)
+            gib(f"add rax, {verschiebung}")
+            gib("mov rax, [rax]")
+            match größe:
+                case 8: gib("mov rax, [rax]")
+                case 4: gib("mov eax, [rax]")
+
+                case x:
+                    fehler(f"Felder der Größe {x} bytes nicht unterstützt.")
+            return
+    
+
         selbst.rechts.lade(gk, gib)
         gib("push rax")
         selbst.links.lade(gk, gib)
@@ -347,31 +369,36 @@ class AsbBinär:
                     case '<':  gib("setb cl")
                 gib('movzx rax, cl')
 
-
             case '&': gib("and rax, rbx")
+            case '|': gib("or  rax, rbx")
 
             case op:
                 print(f"IMPL. OP. {op}")
 
+    def schema_rechne_größe_und_verschiebung(selbst, gk):
+        links = selbst.links
+        rechts = selbst.rechts
+        schemabezeichnung = rechts.inhalt
+
+        if rechts.art != "variable":
+            fehler("Rechte Seite eines Punktausrucks ist keine Variable.")
+        if "§" not in schemabezeichnung:
+            fehler(f"Unbekannte Schemabezeichnung: `{schemabezeichnung}`")
+
+        schemaname, schemafeld = schemabezeichnung.rsplit("§", 1)
+        schema = gk.suche_schema_beim_namen(schemaname)
+        if schemafeld not in schema.felder:
+            fehler(f"Das Schemafeld `{schemafeld}` ist nicht present in `{schemaname}`")
+        index = schema.felder.index(schemafeld)
+        größe = schema.größen[index]
+        verschiebung = sum(schema.größen[:index])
+
+        return (größe, verschiebung)
+
     def speicher(selbst, gk, gib):
         match selbst.operator:
             case '.':
-                links = selbst.links
-                rechts = selbst.rechts
-                schemabezeichnung = rechts.inhalt
-
-                if rechts.art != "variable":
-                    fehler("Rechte Seite eines Punktausrucks ist keine Variable.")
-                if "§" not in schemabezeichnung:
-                    fehler(f"Unbekannte Schemabezeichnung: `{schemabezeichnung}`")
-
-                schemaname, schemafeld = schemabezeichnung.split("§")
-                schema = gk.suche_schema_beim_namen(schemaname)
-                if schemafeld not in schema.felder:
-                    fehler(f"Das Schemafeld `{schemafeld}` ist nicht present in `{schemaname}`")
-                index = schema.felder.index(schemafeld)
-                größe = schema.größen[index]
-                verschiebung = sum(schema.größen[:index])
+                größe, verschiebung = selbst.schema_rechne_größe_und_verschiebung(gk)
 
                 gib("push rax")
                 selbst.links.lade(gk, gib)
@@ -470,11 +497,22 @@ class AsbFalls:
     def zerteil(kls, fluss):
         fluss.erwarte("falls")
         bedingung = AsbBinär.zerteil(fluss)
-        körper    = AsbAbschnitt(fluss)
+        körper    = AsbAbschnitt.zerteil(fluss)
         return kls(bedingung, körper)
 
     def lokale(selbst, menge):
         selbst.körper.lokale(menge)
+
+    def zusammenstell(selbst, gk, gib):
+        überspring_beschriftung = gk.frisch()
+
+        selbst.bedingung.lade(gk, gib)
+        gib("cmp rax, 0")
+        gib(f"je {überspring_beschriftung}")
+        selbst.körper.zusammenstell(gk, gib)
+        gib(f"{überspring_beschriftung}:")
+
+
 
 @dk
 class AsbAusdruck: 
@@ -656,6 +694,7 @@ class AsbSchema:
 
 
 bekannte_programm_pfad = set()
+globale = []
 
 @dk
 class AsbProgramm:
@@ -711,6 +750,10 @@ class AsbProgramm:
                 case 'externe':
                     externe.append(AsbExtern.zerteil(fluss))
 
+                case 'global':
+                    fluss.erwarte("global")
+                    globale.append(fluss.nimm())
+
                 case wort:
                     print(f"Unbekannes Hauptwort: `{wort}`")
                     sys.exit(1)
@@ -735,6 +778,8 @@ class AsbProgramm:
         for name, zk in gk.zk.items():
             daten = ','.join(str(ord(zeichen)) for zeichen in zk + '\0')
             gib(f"{name} db {daten}")
+        for name in globale:
+            gib(f"{name} dq 0")
 
 
         externe_bücher = {}
@@ -786,7 +831,7 @@ def Haupt():
 
     wurzel.zusammenstell(gib)
     ausgabe = "\n".join(zusammenbau)
-    print(ausgabe)
+    #print(ausgabe)
 
     hintergriff, hinterpfad = tempfile.mkstemp(suffix=".asm")
     try:
