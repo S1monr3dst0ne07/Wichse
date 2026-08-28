@@ -197,6 +197,15 @@ class AsbUnär:
                 fluss.erwarte(')')
                 return unterausdruck
 
+            case '[':
+                art = "liste"
+                inhalt = []
+                while fluss.schau() != ']':
+                    inhalt.append(AsbBinär.zerteil(fluss))
+                    if fluss.schau() == ',':
+                        fluss.nimm()
+                fluss.nimm()
+
             case '›':
                 art = "zeichen"
                 inhalt = ord(fluss.nimm())
@@ -235,6 +244,13 @@ class AsbUnär:
             case 'minus':
                 selbst.inhalt.lade(gk, gib)
                 gib("neg rax")
+            case 'liste':
+                besch = gk.frisch()
+                gk.listen[besch] = len(selbst.inhalt)
+                for index, element in enumerate(selbst.inhalt):
+                    element.lade(gk, gib) 
+                    gib(f"mov [{besch}+{index}], rax")
+
             case 'variable':
                 if selbst.inhalt in globale:
                     gib(f"mov rax, [Global_{selbst.inhalt}]")
@@ -616,6 +632,7 @@ class GlobalerKontext:
     wurzelknoten : Any
     variablen   : dict[str, int] = None
     zk          : dict[str, str] = feld(default_factory=lambda: {})
+    listen      : dict[str, int] = feld(default_factory=lambda: {})
     __frisch_index : int = 0
 
     def frisch(selbst):
@@ -781,6 +798,8 @@ class AsbProgramm:
         for name, zk in gk.zk.items():
             daten = ','.join(str(ord(zeichen)) for zeichen in zk + '\0')
             gib(f"{name} db {daten}")
+        for name, länge in gk.listen.items():
+            gib(f"{name} rq {länge}")
         for name in globale:
             gib(f"Global_{name} dq 0")
 
