@@ -332,11 +332,11 @@ class AsbBinär:
 
             selbst.links.lade(gk, gib)
             gib(f"add rax, {verschiebung}")
+            gib("mov rbx, rax")
+            gib("xor rax, rax")
             match größe:
-                case 8: gib("mov rax, [rax]")
-                case 4: gib("mov eax, [rax]")
-                case 2: gib("mov ax,  [rax]")
-                case 1: gib("mov al,  [rax]")
+                case 8: gib("mov rax, [rbx]")
+                case 4: gib("mov eax, [rbx]")
 
                 case x:
                     fehler(f"Felder der Größe {x} bytes nicht unterstützt.")
