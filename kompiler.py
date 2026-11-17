@@ -1,4 +1,4 @@
-from dataclasses import dataclass as dk #datenklass
+from dataclasses import dataclass as dk #datenklasse
 from dataclasses import field     as feld
 from typing import Any
 import subprocess
@@ -8,22 +8,22 @@ import sys, os
 
 def ZeichenEinOrdne(zeichen):
     match zeichen:
-        case x if x.isdigit(): return "zahl"
-        case x if x.isalpha(): return "wort"
-        case '_':              return "wort"
-        case '§':              return "wort"
+        case x if x.isdigit():  return "zahl"
+        case x if x.isalpha():  return "wort"
+        case '_':               return "wort"
+        case '§':               return "wort"
 
         #Klammern müssen immer direkt
         # als Marken abgegeben werden. 
-        case '(':              return "klammer auf"
-        case ')':              return "klammer zu"
+        case '(':               return "klammer auf"
+        case ')':               return "klammer zu"
 
-        case '»':              return "gänsefuß auf"
-        case '«':              return "gänsefuß zu"
+        case '»':               return "gänsefuß auf"
+        case '«':               return "gänsefuß zu"
 
-        case '›' | '‹':        return "gänsezeh"
+        case '›' | '‹':         return "gänsezeh"
 
-        case ' ' | '\n':       return "formatierung"
+        case ' ' | '\n' | '\t': return "formatierung"
 
         case _: return "symbol"
 
